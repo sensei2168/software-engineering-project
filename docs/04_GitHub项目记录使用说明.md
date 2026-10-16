@@ -1,8 +1,10 @@
 # GitHub 项目记录使用说明
 
-版本：v0.3｜更新日期：2026-10-16｜适用于“小学口算练习微信小程序”。
+版本：v0.3.1｜更新日期：2026-10-16｜适用于“小学口算练习微信小程序”。
 
-仓库：[sensei2168/software-engineering-project](https://github.com/sensei2168/software-engineering-project)。本轮修订前已读取 main 分支 80db3e4，确认 README、4 份初步文档和任务模板已上传。本版新增需求调研与验证计划，旧访谈提纲保留为历史材料。具体更新与合并状态以仓库提交历史为准。
+仓库：[sensei2168/software-engineering-project](https://github.com/sensei2168/software-engineering-project)。v0.3 的立项完善稿、需求调研与验证计划及配套资料已提交，任务模板也已上传。旧访谈提纲保留为历史材料。具体更新与合并状态以仓库提交历史为准。
+
+v0.3.1 补充[项目实施计划与分工](05_项目实施计划与分工.md)，从需求规则到正式发布分六个阶段说明工作、交付物及完成条件。该计划尚未落实日期和线上任务认领，不替代实际 Issues 及执行记录。
 
 ## 1. 各区域记录什么
 
@@ -26,7 +28,8 @@ software-engineering-project/
 │   ├── 02_需求调研与验证计划.md
 │   ├── 02_家长访谈提纲与记录表.md（历史材料，当前不执行）
 │   ├── 03_AI协作与核实记录.md
-│   └── 04_GitHub项目记录使用说明.md
+│   ├── 04_GitHub项目记录使用说明.md
+│   └── 05_项目实施计划与分工.md
 └── .github/
     └── ISSUE_TEMPLATE/
         └── task.md
@@ -48,7 +51,7 @@ software-engineering-project/
 
 ## 4. Wiki 导航建议
 
-如果仓库已启用 Wiki，可建立“小学口算练习微信小程序项目记录”首页，链接到 README、立项稿、当前调研计划、会议、任务计划、原型及测试材料。暂未产生的材料写“待补充”，不用空链接伪装成已完成。
+如果仓库已启用 Wiki，可建立“小学口算练习微信小程序项目记录”首页，链接到 README、立项稿、当前调研计划、项目实施计划与分工、会议、具体任务计划、原型及测试材料。暂未产生的材料写“待补充”，不用空链接伪装成已完成。
 
 Wiki 的可用性与仓库及账号情况有关，按当前仓库设置核对；正文仍保存在 docs。参考：[GitHub 关于 Wiki](https://docs.github.com/en/communities/documenting-your-project-with-wikis/about-wikis)。
 
