@@ -1,0 +1,18 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/settings/settings",
+    "pages/practice/practice",
+    "pages/result/result",
+    "pages/room/room",
+    "pages/history/history"
+  ],
+  "window": {
+    "navigationBarTitleText": "口算小搭档",
+    "navigationBarBackgroundColor": "#FFFCF3",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FFFCF3"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

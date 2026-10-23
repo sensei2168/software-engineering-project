@@ -1,0 +1,15 @@
+<view class="page">
+  <view class="status">即将开放</view>
+  <view class="title">和伙伴一起练习</view>
+  <view class="card">
+    <view class="card-title">双人答题</view>
+    <view class="note">比赛功能正在准备中，当前还不能创建或加入房间。</view>
+  </view>
+  <view class="card">
+    <view class="card-title">计划中的玩法</view>
+    <view class="summary-line">1. 一人创建房间，另一人输入房间码加入。</view>
+    <view class="summary-line">2. 双方准备后，完成同一组限时题目。</view>
+    <view class="summary-line">3. 比赛结束后，一起查看结果。</view>
+  </view>
+  <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
+</view>

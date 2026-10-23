@@ -1,0 +1,28 @@
+page {
+  background: #fffcf3;
+  color: #183f40;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  font-size: 30rpx;
+}
+.page { padding: 36rpx 32rpx 64rpx; }
+.hero { text-align: center; padding: 12rpx 0 36rpx; }
+.avatar { width: 190rpx; height: 190rpx; border-radius: 48rpx; }
+.title { font-size: 48rpx; font-weight: 700; line-height: 1.4; margin: 16rpx 0; }
+.subtitle { color: #597374; line-height: 1.7; font-size: 28rpx; }
+.card { background: #fff; border: 2rpx solid #e3efeb; border-radius: 28rpx; padding: 30rpx; margin-bottom: 24rpx; }
+.card-title { font-size: 34rpx; font-weight: 600; margin-bottom: 12rpx; }
+.note { color: #657773; font-size: 26rpx; line-height: 1.7; }
+.status { display: inline-block; padding: 8rpx 18rpx; border-radius: 16rpx; color: #795526; background: #fff1d7; font-size: 24rpx; margin-bottom: 18rpx; }
+button { font-size: 30rpx; border-radius: 20rpx; margin-top: 22rpx; }
+button::after { border: none; }
+.primary { background: #087f79; color: #fff; }
+.secondary { background: #eef7f4; color: #216b67; }
+.link { color: #087f79; text-align: center; padding: 24rpx; }
+.field { margin-bottom: 28rpx; }
+.label { display: block; font-weight: 600; margin-bottom: 16rpx; }
+.choices { display: flex; flex-wrap: wrap; }
+.choice { margin: 0 14rpx 14rpx 0; padding: 0 30rpx; background: #f1f5f3; color: #466462; font-size: 28rpx; }
+.choice.active { background: #087f79; color: #fff; }
+.number-input { height: 88rpx; padding: 0 24rpx; background: #f3f7f5; border-radius: 18rpx; }
+.error { color: #a43426; font-size: 26rpx; margin-top: 12rpx; line-height: 1.6; }
+.summary-line { margin: 18rpx 0; line-height: 1.6; }

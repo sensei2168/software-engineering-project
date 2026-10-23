@@ -1,0 +1,9 @@
+<view class="page">
+  <view class="status">即将开放</view>
+  <view class="title">留下练习的足迹</view>
+  <view class="card">
+    <view class="card-title">练习记录</view>
+    <view class="note">记录功能正在准备中。开放后，你可以在这里回顾已完成的练习。</view>
+  </view>
+  <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
+</view>

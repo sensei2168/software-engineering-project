@@ -1,0 +1,9 @@
+<view class="page">
+  <view class="status">即将开放</view>
+  <view class="title">每一步进步都值得记录</view>
+  <view class="card">
+    <view class="card-title">练习结果</view>
+    <view class="note">结果功能正在准备中。开放后，你可以查看答题情况、回顾错题，再试一次。</view>
+  </view>
+  <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
+</view>

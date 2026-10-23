@@ -1,0 +1,35 @@
+<view class="page">
+  <view class="title">选一组选项</view>
+  <view class="subtitle">先看看你希望怎样练习</view>
+  <view class="status">设置预览 · 尚未生成题目</view>
+  <view class="card">
+    <view class="field">
+      <text class="label">练习模式</text>
+      <view class="choices">
+        <button class="choice {{config.mode === 'normal' ? 'active' : ''}}" data-value="normal" bindtap="chooseMode">不限时</button>
+        <button class="choice {{config.mode === 'timed' ? 'active' : ''}}" data-value="timed" bindtap="chooseMode">限时</button>
+      </view>
+    </view>
+    <view class="field">
+      <text class="label">题型</text>
+      <view class="choices">
+        <button class="choice {{config.operation === 'add' ? 'active' : ''}}" data-value="add" bindtap="chooseOperation">加法</button>
+        <button class="choice {{config.operation === 'subtract' ? 'active' : ''}}" data-value="subtract" bindtap="chooseOperation">减法</button>
+      </view>
+      <view class="note">当前预览：20 以内加减法。乘除法后续开放。</view>
+    </view>
+    <view class="field">
+      <text class="label">题量（10—50 道）</text>
+      <input class="number-input" type="number" maxlength="3" value="{{countText}}" bindinput="changeCount" placeholder="默认 30 道" />
+    </view>
+    <view class="field" wx:if="{{config.mode === 'timed'}}">
+      <text class="label">时长</text>
+      <view class="choices">
+        <button wx:for="{{durations}}" wx:key="*this" class="choice {{config.durationSeconds === item ? 'active' : ''}}" data-value="{{item}}" bindtap="chooseDuration">{{item}} 秒</button>
+      </view>
+      <view class="note">实际答题开始后才计时，当前预览不会开始倒计时。</view>
+    </view>
+    <view class="error" wx:if="{{error}}">{{error}}</view>
+    <button class="primary" bindtap="previewPractice">查看答题页</button>
+  </view>
+</view>

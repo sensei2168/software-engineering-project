@@ -1,0 +1,24 @@
+<view class="page">
+  <view class="hero">
+    <image class="avatar" src="/assets/avatar.png" mode="aspectFit" />
+    <view class="title">口算小搭档</view>
+    <view class="subtitle">每天练一练，和数字交朋友</view>
+  </view>
+  <view class="status">开发预览 · 练习与比赛尚未开放</view>
+  <view class="card">
+    <view class="card-title">普通练习</view>
+    <view class="note">选择题型和题量，按自己的节奏练习。</view>
+    <button class="primary" bindtap="openNormal">查看练习设置</button>
+  </view>
+  <view class="card">
+    <view class="card-title">限时练习</view>
+    <view class="note">选择练习时长，逐步熟悉口算节奏。</view>
+    <button class="secondary" bindtap="openTimed">查看限时设置</button>
+  </view>
+  <view class="card">
+    <view class="card-title">双人答题</view>
+    <view class="note">和一位伙伴完成同一组题目。</view>
+    <button class="secondary" bindtap="openRoom">查看比赛页面</button>
+  </view>
+  <button class="secondary" bindtap="openHistory">练习记录</button>
+</view>
