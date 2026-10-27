@@ -52,3 +52,9 @@ page {
 .settings-footnote { color: #596777; font-size: 23rpx; line-height: 1.7; padding: 18rpx 4rpx 0; }
 .option-pressed { background: #e1e9e4; }
 .submit-pressed { background: #11523e; }
+
+/* 覆盖小程序 button:not([size=mini]) 的固定宽度与自动边距。
+   双列宽度由 type-cell 分配，按钮只填满自己的单元格。 */
+.settings-page .setting-option { width: auto; box-sizing: border-box; margin-left: 6rpx; margin-right: 6rpx; }
+.settings-page .type-option { width: 100%; max-width: 100%; margin: 0; flex: none; }
+.settings-page .settings-submit { width: 100%; max-width: 100%; box-sizing: border-box; margin-left: 0; margin-right: 0; }

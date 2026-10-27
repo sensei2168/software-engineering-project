@@ -48,6 +48,8 @@ AppID 是项目标识，不是 AppSecret。当前代码无需填写 AppSecret；
 
 在外层本地仓库目录运行 `node --test tests/practice-settings.test.cjs`，覆盖全部题型在两种模式下的参数往返、切换规则、非法配置和旧链接兼容。该检查不替代微信开发者工具和真机验证。
 
+布局回归可运行 `node tests/settings-layout.browser.cjs`，需要本机Chrome（可用CHROME_PATH指定路径）。它检查320／375／430宽度下原生按钮默认尺寸是否导致重叠或越界；不替代真机复查。
+
 ## 配置参考
 
 项目配置参考 [微信官方示例](https://github.com/wechat-miniprogram/miniprogram-demo/blob/master/project.config.json)，页面注册参考 [官方 app.json 示例](https://github.com/wechat-miniprogram/miniprogram-demo/blob/master/miniprogram/app.json)。本项目未引入示例中的第三方依赖或云服务。
