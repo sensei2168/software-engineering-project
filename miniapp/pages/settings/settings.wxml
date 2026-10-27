@@ -1,6 +1,7 @@
 <view class="page settings-page">
   <view class="settings-heading">这次想练什么？</view>
-  <view class="settings-description">选好题型和题量，下一步核对练习设置。</view>
+  <view class="settings-description">选好年级、题型和题量，下一步核对设置。</view>
+  <view class="selection-notice" wx:if="{{notice}}">{{notice}}</view>
   <view class="settings-panel">
     <view class="setting-group">
       <view class="setting-label">练习方式</view>
@@ -10,11 +11,27 @@
       </view>
     </view>
     <view class="setting-group">
-      <view class="setting-label">题型<text class="label-detail">20 以内</text></view>
+      <view class="setting-label">年级<text class="label-detail">单选</text></view>
       <view class="option-row">
-        <button class="setting-option operation-option {{config.operation === 'add' ? 'is-selected' : ''}}" data-value="add" bindtap="chooseOperation" hover-class="option-pressed"><text class="operation-symbol">＋</text><text>加法</text><text wx:if="{{config.operation === 'add'}}" class="option-check">✓</text></button>
-        <button class="setting-option operation-option {{config.operation === 'subtract' ? 'is-selected' : ''}}" data-value="subtract" bindtap="chooseOperation" hover-class="option-pressed"><text class="operation-symbol">−</text><text>减法</text><text wx:if="{{config.operation === 'subtract'}}" class="option-check">✓</text></button>
+        <button wx:for="{{grades}}" wx:key="value" class="setting-option grade-option {{config.grade === item.value ? 'is-selected' : ''}}" data-value="{{item.value}}" bindtap="chooseGrade" hover-class="option-pressed">{{item.label}}<text wx:if="{{config.grade === item.value}}" class="grade-check">✓</text></button>
       </view>
+    </view>
+    <view class="setting-group">
+      <view class="setting-label">题型<text class="label-detail">每次选一种</text></view>
+      <view class="option-row family-row" wx:if="{{config.grade === 3}}">
+        <button wx:for="{{ruleGroups}}" wx:key="value" class="setting-option family-option {{selectedRule.group === item.value ? 'is-selected' : ''}}" data-value="{{item.value}}" bindtap="chooseGroup" hover-class="option-pressed">{{item.label}}<text wx:if="{{selectedRule.group === item.value}}" class="family-check">✓</text></button>
+      </view>
+      <view class="type-grid">
+        <view wx:for="{{visibleRules}}" wx:key="id" class="type-cell {{item.wide ? 'type-cell-wide' : ''}}">
+          <button class="setting-option type-option {{config.ruleId === item.id ? 'is-selected' : ''}}" data-value="{{item.id}}" bindtap="chooseRule" hover-class="option-pressed"><view class="type-name">{{item.label}}</view><view class="type-description">{{item.rangeLabel}}</view><text wx:if="{{config.ruleId === item.id}}" class="option-check">✓</text></button>
+        </view>
+      </view>
+      <view class="rule-example">
+        <text class="example-label">示例：</text>
+        <view wx:if="{{selectedRule.exampleKind === 'fraction'}}" class="fraction-example"><view class="fraction"><text class="fraction-numerator">{{selectedRule.fractionExample.leftNumerator}}</text><text class="fraction-denominator">{{selectedRule.fractionExample.denominator}}</text></view><text>＋</text><view class="fraction"><text class="fraction-numerator">{{selectedRule.fractionExample.rightNumerator}}</text><text class="fraction-denominator">{{selectedRule.fractionExample.denominator}}</text></view><text>＝ ?</text></view>
+        <text wx:else>{{selectedRule.example}}</text>
+      </view>
+      <view class="field-hint" wx:if="{{selectedRule.note}}">{{selectedRule.note}}</view>
     </view>
     <view class="setting-group">
       <view class="setting-label">题量<text class="label-detail">10—50 道</text></view>
@@ -30,6 +47,7 @@
       <view class="field-hint">进入实际答题后才开始计时。</view>
     </view>
   </view>
+  <view class="selection-summary">已选：{{selectionSummary}}</view>
   <button class="settings-submit" bindtap="previewPractice" hover-class="submit-pressed">确认设置，查看下一页<text class="submit-arrow">→</text></button>
   <view class="settings-footnote">当前为设置预览，下一页可核对参数，暂不生成题目。</view>
 </view>

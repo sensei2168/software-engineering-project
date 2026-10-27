@@ -3,13 +3,16 @@
   <view class="title">练习正在准备中</view>
   <view class="card" wx:if="{{config}}">
     <view class="card-title">本次选择</view>
-    <view class="summary-line">题型：20 以内{{config.operation === 'add' ? '加法' : '减法'}}</view>
+    <view class="summary-line">年级：{{display.gradeLabel}}</view>
+    <view class="summary-line">题型：{{display.ruleLabel}}</view>
+    <view class="summary-line">范围：{{display.rangeLabel}}</view>
     <view class="summary-line">题量：{{config.count}} 道</view>
     <view class="summary-line">模式：{{config.mode === 'timed' ? '限时练习' : '普通练习'}}</view>
     <view class="summary-line" wx:if="{{config.mode === 'timed'}}">时长：{{config.durationSeconds}} 秒（尚未开始）</view>
+    <view class="note" wx:if="{{display.ruleNote}}">{{display.ruleNote}}</view>
     <view class="note">答题功能开放后，就可以在这里开始练习。</view>
   </view>
   <view class="error" wx:if="{{error}}">{{error}}</view>
-  <navigator class="link" url="/pages/settings/settings" open-type="redirect">返回练习设置</navigator>
+  <button class="link settings-return" bindtap="backToSettings">返回练习设置</button>
   <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
 </view>
