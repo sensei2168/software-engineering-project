@@ -1,0 +1,37 @@
+page {
+  background: #f5f7fa;
+  color: #192536;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.settings-page { padding: 30rpx 36rpx 44rpx; }
+.settings-heading { color: #192536; font-size: 44rpx; font-weight: 700; line-height: 1.4; margin: 10rpx 0 12rpx; }
+.settings-description { color: #526173; font-size: 26rpx; line-height: 1.7; margin-bottom: 30rpx; }
+.settings-panel { border: 1rpx solid #dce2e9; border-radius: 22rpx; background: #fff; padding: 30rpx 28rpx 4rpx; }
+.setting-group { margin-bottom: 30rpx; }
+.setting-label { display: flex; align-items: center; justify-content: space-between; font-size: 29rpx; color: #192536; font-weight: 600; margin-bottom: 16rpx; }
+.label-detail { color: #526173; font-size: 24rpx; font-weight: 400; }
+.option-row { display: flex; margin: 0 -6rpx; }
+.setting-option { position: relative; flex: 1; min-width: 0; box-sizing: border-box; margin: 0 6rpx; padding: 22rpx 18rpx; background: #f5f7fa; color: #334155; font-size: 29rpx; line-height: 1.4; border: 2rpx solid #e1e6ed; border-radius: 14rpx; text-align: center; }
+.setting-option::after, .settings-submit::after { border: none; }
+.mode-option { text-align: left; padding: 18rpx 22rpx; }
+.option-description { color: #526173; font-size: 23rpx; font-weight: 400; margin-top: 6rpx; }
+.is-selected { border-color: #17664e; color: #104f3c; background: #eaf4ee; font-weight: 600; }
+.is-selected .option-description { color: #36614f; }
+.option-check { position: absolute; right: 16rpx; top: 18rpx; font-size: 26rpx; color: #17664e; }
+.operation-option { display: flex; align-items: center; justify-content: center; min-height: 92rpx; }
+.operation-option .option-check { top: 28rpx; right: 14rpx; font-size: 23rpx; }
+.operation-symbol { font-size: 35rpx; font-weight: 500; line-height: 1; margin-right: 12rpx; }
+.count-box { display: flex; align-items: center; border: 2rpx solid #c7d1dc; background: #fff; border-radius: 14rpx; padding: 0 24rpx; }
+.count-input { flex: 1; min-width: 0; height: 96rpx; font-size: 36rpx; font-weight: 600; color: #192536; }
+.count-placeholder { color: #657487; font-size: 28rpx; font-weight: 400; }
+.count-unit { color: #526173; font-size: 27rpx; margin-left: 18rpx; }
+.count-box-error { border-color: #ad3529; background: #fffafa; }
+.field-hint { margin-top: 12rpx; color: #526173; font-size: 23rpx; line-height: 1.6; }
+.field-error { margin-top: 12rpx; color: #ad3529; font-size: 25rpx; line-height: 1.6; }
+.duration-option { padding: 22rpx 6rpx; font-size: 27rpx; min-height: 88rpx; }
+.duration-check { margin-left: 8rpx; font-size: 23rpx; }
+.settings-submit { display: flex; align-items: center; justify-content: space-between; margin: 28rpx 0 0; padding: 0 28rpx; min-height: 96rpx; line-height: 1.5; border-radius: 16rpx; font-size: 29rpx; font-weight: 600; background: #17664e; color: #fff; }
+.submit-arrow { font-size: 34rpx; margin-left: 12rpx; }
+.settings-footnote { color: #596777; font-size: 23rpx; line-height: 1.7; padding: 18rpx 4rpx 0; }
+.option-pressed { background: #e1e9e4; }
+.submit-pressed { background: #11523e; }
