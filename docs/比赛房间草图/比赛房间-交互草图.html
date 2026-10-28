@@ -1,75 +1,257 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>双人比赛房间流程草图</title><style>
 *{box-sizing:border-box}body{margin:0;background:#e8edf2;color:#192536;font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei',sans-serif}button,input{font-family:inherit}button{cursor:pointer}button:disabled{cursor:default}button:focus-visible,input:focus-visible{outline:3px solid #9bbfad;outline-offset:2px}.board{max-width:1281px;margin:auto;padding:30px 36px}.head{display:flex;justify-content:space-between;gap:20px;align-items:start}.head h1{margin:0 0 9px;font-size:25px}.intro,.footer{font-size:13px;line-height:1.9;color:#526173}.tag{white-space:nowrap;color:#17664e;background:#f4faf6;border:1px solid #c5d3cc;border-radius:8px;padding:8px 12px;font-size:12px}.nav-states{display:flex;gap:7px;flex-wrap:wrap;margin:20px 0}.nav-states button,.demo-tools button{border:1px solid #cdd7df;background:#fff;color:#334155;padding:8px 11px;border-radius:7px;font-size:12px}.nav-states .active{border-color:#17664e;background:#eaf4ee;color:#104f3c}.layout{display:flex;gap:30px;align-items:flex-start;justify-content:center}.screen{position:relative;width:375px;flex:none;background:#f5f7fa;border:1px solid #ccd5df;border-radius:20px;overflow:hidden;box-shadow:0 3px 12px #1b33400a}.bar{height:46px;display:flex;justify-content:center;align-items:center;font-size:15px;border-bottom:1px solid #e7ebef}.content{padding:20px 18px 22px;min-height:560px}.title{font-size:22px;line-height:1.45;font-weight:700;margin:0 0 7px}.sub{font-size:13px;line-height:1.8;color:#526173;margin-bottom:18px}.card{padding:16px 15px;border:1px solid #dce2e9;border-radius:12px;background:#fff;margin-bottom:15px}.card-title{font-size:14px;font-weight:600;margin-bottom:13px}.kv{display:flex;justify-content:space-between;align-items:start;gap:14px;font-size:13px;line-height:1.8;margin-top:9px}.kv .key{color:#526173;white-space:nowrap}.kv .value{text-align:right;color:#192536}.line{height:1px;background:#e6ebf0;margin:13px 0}.button{display:block;width:100%;border:1px solid #17664e;border-radius:9px;min-height:45px;line-height:1.5;background:#17664e;color:#fff;font-size:14px;font-weight:600;text-align:center;padding:11px 12px;margin:12px 0 0}.button.secondary{background:#fff;color:#17664e;border-color:#c8d8cf}.button.tertiary{color:#526173;background:transparent;border-color:transparent;font-weight:400}.button:disabled{background:#edf1f4;color:#8491a0;border-color:#dce2e9}.button.small{font-size:12px;min-height:36px;padding:7px 10px;margin-top:13px}.hint{font-size:11px;line-height:1.8;color:#596777;margin-top:9px}.green-note{color:#36614f}.room-code{font-family:Consolas,monospace;font-size:34px;font-weight:700;letter-spacing:6px;color:#17664e;text-align:center;margin:15px 0 4px}.code-label{font-size:12px;text-align:center;color:#526173}.members-title{display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-bottom:12px}.members-title span{font-size:12px;font-weight:400;color:#526173}.member{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 0}.member+.member{border-top:1px solid #edf0f4}.avatar{width:34px;height:34px;border-radius:50%;background:#eaf4ee;color:#17664e;text-align:center;line-height:34px;font-size:13px;font-weight:600}.member-empty .avatar{background:#f1f4f7;color:#8491a0}.member-copy{flex:1}.member-name{font-size:13px;font-weight:600}.member-role{font-size:11px;color:#657487;margin-top:2px}.member-state{font-size:11px;color:#657487}.member-state.done{color:#17664e}.badge{font-size:11px;padding:3px 7px;border-radius:5px;background:#eaf4ee;color:#17664e}.field-label{font-size:14px;font-weight:600;margin-bottom:10px}.code-input{width:100%;height:51px;box-sizing:border-box;border:1px solid #c7d1dc;border-radius:8px;padding:0 12px;background:#fff;font-size:22px;font-weight:600;letter-spacing:5px;color:#192536;outline:none}.code-input::placeholder{font-size:13px;font-weight:400;letter-spacing:0;color:#657487}.input-error{border-color:#ad3529}.error-text{font-size:12px;color:#ad3529;line-height:1.7;margin-top:8px}.center{text-align:center}.count-circle{width:106px;height:106px;border-radius:50%;background:#eaf4ee;color:#17664e;font-size:58px;font-weight:700;line-height:106px;margin:29px auto 24px}.symbol{width:70px;height:70px;border-radius:50%;background:#f0f3f6;color:#526173;font-size:27px;line-height:70px;margin:9px auto 20px;font-weight:600}.symbol.warning{background:#fff3df;color:#876019}.aside{max-width:430px;flex:1;background:#fff;border:1px solid #d5dfe5;border-radius:12px;padding:20px}.aside h2{font-size:17px;margin:0 0 12px}.aside p{font-size:13px;color:#526173;line-height:1.9;margin:8px 0}.demo-tools{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}.demo-title{font-size:12px;font-weight:600;color:#526173;margin-top:20px}.demo-message{min-height:40px;font-size:12px;line-height:1.8;color:#785317;padding-top:8px}.columns{display:flex;gap:24px;align-items:start;margin:24px 0}.column{width:387px;flex:none}.column .screen{width:387px}.caption{font-size:15px;font-weight:600;margin-bottom:10px;line-height:1.6}.caption small{font-size:12px;color:#526173;font-weight:400}.footer{margin-top:21px}.overlay{position:absolute;inset:0;background:#102d3670;display:flex;align-items:center;justify-content:center;padding:25px}.dialog{background:#fff;border-radius:13px;padding:21px;width:100%}.dialog h3{font-size:18px;margin:0 0 10px}.dialog p{font-size:13px;line-height:1.8;color:#526173}.summary-mini{font-size:12px;line-height:1.9;color:#526173;background:#f5f7fa;padding:9px 11px;border-radius:7px;margin:12px 0}.sheet .board{width:1281px;max-width:none}.sheet .content{min-height:562px}.sheet .column{min-height:650px}.loading-dots{font-size:25px;color:#17664e;letter-spacing:5px;margin:12px 0}@media(max-width:780px){body:not(.sheet) .board{padding:20px 12px}body:not(.sheet) .layout{flex-direction:column;align-items:center}body:not(.sheet) .screen{max-width:100%}body:not(.sheet) .aside{max-width:100%;width:375px}body:not(.sheet) .head{flex-wrap:wrap}}
-</style><main class="board"><header class="head"><div><h1>双人比赛 · 房间流程草图</h1><div class="intro">沿用当前设置页风格，先确认基础按钮、状态和恢复路径。所有房间、成员和参数都是演示数据。</div></div><div class="tag">第一轮草图 · 未接接口</div></header><nav id="state-nav" class="nav-states"></nav><div id="main"><div class="layout"><div class="screen" id="phone"></div><aside class="aside"><h2>当前状态说明</h2><p id="state-description"></p><div class="demo-title">草图演示控制（不是小程序按钮）</div><div class="demo-tools" id="demo-tools"><button data-demo="partner-join">模拟伙伴加入</button><button data-demo="partner-ready">切换伙伴准备</button><button data-demo="role">切换房主／加入者</button><button data-demo="host-start">模拟房主开赛</button><button data-demo="offline">模拟连接失败</button></div><p>加入演示：482731正常；111111房间已满；222222失效；333333连接失败。</p><p>上方状态按钮可直接查看每一张草图。准备、退出确认和倒计时按钮可用于演示流程。</p><div id="demo-message" class="demo-message"></div><div class="line"></div><p>浏览器交互草图，不是微信或真机截图。页面确认后再接房间接口；不代表已实现联机、身份或同步。</p></aside></div></div></main><script>(function client(stateList) {
-  const sheet=new URLSearchParams(location.search).get('sheet');
-  let current='create',role='host',ownReady=false,partnerReady=false,count=3,roomCode='',inputError='',dialog=false,timer=null,previous='waiting';
-  const titles={create:'创建房间',join:'加入房间',waiting:'等待伙伴',ready:'两人准备',both:'双方就绪',countdown:'开始前倒计时',full:'房间已满',expired:'房间已失效',offline:'连接失败',started:'进入答题页'};
-  function button(label,action,kind='',disabled=false){return '<button class="button '+kind+'" data-action="'+action+'"'+(disabled?' disabled':'')+'>'+label+'</button>';}
-  function settings(){return '<div class="card"><div class="card-title">比赛内容</div><div class="kv"><span class="key">年级</span><span class="value">二年级</span></div><div class="kv"><span class="key">题型</span><span class="value">表内乘法</span></div><div class="kv"><span class="key">题量 / 时长</span><span class="value">20 道 / 120 秒</span></div></div>';}
-  function members(state){const waiting=state==='waiting',a=state==='both'||state==='countdown'||(state==='ready'&&ownReady),b=state==='both'||state==='countdown'||(state==='ready'&&partnerReady);return '<div class="card"><div class="members-title">参赛成员<span>'+(waiting?'1 / 2 人':'2 / 2 人')+'</span></div><div class="member"><div class="avatar">我</div><div class="member-copy"><div class="member-name">我</div><div class="member-role">'+(role==='host'?'房主':'加入者')+'</div></div><span class="member-state '+(a?'done':'')+'">'+(waiting?'已加入':a?'✓ 已准备':'未准备')+'</span></div><div class="member '+(waiting?'member-empty':'')+'"><div class="avatar">'+(waiting?'＋':'伴')+'</div><div class="member-copy"><div class="member-name">'+(waiting?'等待另一位伙伴':'伙伴')+'</div><div class="member-role">'+(waiting?'分享房间码邀请加入':'示例参与者')+'</div></div><span class="member-state '+(b?'done':'')+'">'+(waiting?'空位':b?'✓ 已准备':'未准备')+'</span></div></div>';}
-  function codeCard(){return '<div class="card"><div class="code-label">房间码 · 示例</div><div class="room-code">482731</div>'+button('复制房间码','copy','secondary small')+'</div>';}
-  function body(state){
-    let h='';
-    if(state==='create')h='<h2 class="title">创建一场小比赛</h2><div class="sub">选好比赛内容，邀请一位伙伴一起参加。</div>'+settings()+button('修改比赛设置','settings','secondary')+button('创建房间','create')+button('输入房间码加入','join','tertiary')+'<div class="hint">同一房间使用相同题目和规则。</div>';
-    else if(state==='join')h='<h2 class="title">加入伙伴的房间</h2><div class="sub">输入对方分享的房间码。</div><div class="card"><div class="field-label">房间码</div><input class="code-input '+(inputError?'input-error':'')+'" maxlength="6" inputmode="numeric" value="'+roomCode+'" placeholder="请输入6位数字房间码" aria-label="房间码">'+(inputError?'<div class="error-text">'+inputError+'</div>':'<div class="hint">可以向房主索取房间码。</div>')+'</div>'+button('加入房间','submit-join')+button('我来创建房间','to-create','secondary');
-    else if(['waiting','ready','both'].includes(state)){
-      const waiting=state==='waiting',both=state==='both'||(ownReady&&partnerReady);
-      h='<h2 class="title">'+(waiting?'等一位伙伴加入':both?'准备好就开始吧':'两个人都准备好再开始')+'</h2><div class="sub">'+(waiting?'把房间码发给伙伴，加入后一起准备。':'房间 482731 · 比赛内容由房主设置')+'</div>'+(waiting?codeCard():'')+members(state)+'<div class="summary-mini">二年级 · 表内乘法 · 20 道 · 120 秒</div>';
-      if(waiting)h+=button('邀请伙伴','invite')+button('退出房间','exit','secondary');
-      else h+=button((state==='both'||ownReady)?'取消准备':'我准备好了','toggle-ready','secondary')+(role==='host'?button('开始比赛','start','',!both):button('等待房主开始','noop','',true))+'<div class="hint center">'+(both?'双方已准备。':'双方准备后，房主才能开始比赛。')+'</div>'+button('退出房间','exit','tertiary');
-    } else if(state==='countdown')h='<div class="center"><span class="badge">双方已准备</span><h2 class="title" style="margin-top:15px">比赛马上开始</h2><div class="sub">请准备作答，倒计时结束后进入比赛。</div><div class="count-circle">'+count+'</div><div class="summary-mini">二年级 · 表内乘法<br>20 道题 · 限时 120 秒</div>'+button('取消开始','cancel-start','secondary')+'<div class="hint">倒计时期间请保持在本页。</div></div>';
-    else if(state==='full')h='<div class="center"><div class="symbol">2/2</div><h2 class="title">这个房间已经满了</h2><div class="sub">房间只接受两人参赛。<br>请检查房间码，或自己创建新房间。</div></div>'+button('重新输入房间码','join')+button('创建新房间','to-create','secondary');
-    else if(state==='expired')h='<div class="center"><div class="symbol warning">!</div><h2 class="title">房间已失效</h2><div class="sub">房间可能已经关闭或过期。<br>请向伙伴索取新的房间码。</div></div>'+button('重新输入房间码','join')+button('创建新房间','to-create','secondary');
-    else if(state==='offline')h='<div class="center"><div class="symbol">···</div><h2 class="title">暂时无法连接房间</h2><div class="sub">请检查网络后重试。<br>重试将尝试恢复原房间。</div></div><div class="card"><div class="card-title">保留本次设置</div><div class="hint">房间码和已选比赛内容保持不变。</div></div>'+button('重试连接','retry')+button('返回加入页面','join','secondary');
-    else h='<div class="center"><div class="symbol">✓</div><h2 class="title">下一步：比赛答题页</h2><div class="sub">本草图到房间流程为止。<br>这里仅表示进入答题页的跳转位置。</div></div>'+button('返回房间草图','to-create','secondary');
-    return '<div class="bar">双人比赛</div><div class="content">'+h+'</div>'+(dialog?'<div class="overlay"><div class="dialog"><h3>'+(role==='host'?'退出并关闭房间？':'退出当前房间？')+'</h3><p>'+(role==='host'?'另一位伙伴将无法继续使用这个房间。':'退出后，你将不再参与本场比赛。')+'</p>'+button('继续留在房间','stay','secondary')+button('确认退出','confirm-exit')+'</div></div>':'');
+</style><main class="board"><header class="head"><div><h1>双人比赛 · 房间流程草图</h1><div class="intro">沿用当前设置页风格，先确认基础按钮、状态和恢复路径。所有房间、成员和参数都是演示数据。</div></div><div class="tag">第一轮草图 · 未接接口</div></header><nav id="state-nav" class="nav-states"></nav><div id="main"><div class="layout"><div class="screen" id="phone"></div><aside class="aside"><h2>当前状态说明</h2><p id="state-description"></p><div class="demo-title">草图演示控制（不是小程序按钮）</div><div class="demo-tools" id="demo-tools"><button data-demo="partner-join">模拟伙伴加入</button><button data-demo="partner-ready">切换伙伴准备</button><button data-demo="role">切换房主／加入者</button><button data-demo="host-start">模拟房主开赛</button><button data-demo="offline">模拟连接失败</button><button data-demo="cancel-start">模拟服务端取消开始</button><button data-demo="close-room">模拟服务端关闭房间</button></div><p>加入演示：482731正常；111111房间已满；222222失效；333333连接失败。</p><p>上方状态按钮会初始化预置示例。重连保留原房间快照；右侧可明确模拟断线期间的准备变化、取消开始和关闭房间。</p><div id="demo-message" class="demo-message"></div><div class="line"></div><p>浏览器交互草图，不是微信或真机截图。页面确认后再接房间接口；不代表已实现联机、身份或同步。</p></aside></div></div></main><script>(function client(stateList) {
+  const sheet = new URLSearchParams(location.search).get('sheet');
+  let current = 'create', role = 'host', roomCode = '', inputError = '', dialog = false, timer = null;
+  let mockRoom = null, displayedRoom = null, pendingJoin = false, attemptSerial = 0;
+  const copy = value => value && JSON.parse(JSON.stringify(value));
+
+  // 仅为草图模拟服务端房间；网络失败不会改动它的成员、准备状态或时间。
+  function newRoom(memberCount = 2, prepared = false) {
+    return { roomId: 'demo-room-482731', code: '482731', phase: 'waiting',
+      members: ['host', 'guest'].slice(0, memberCount).map(seat => ({ seat, ready: prepared })),
+      attemptId: null, startAt: null, endAt: null, lastEvent: '' };
   }
-  function setState(next){if(timer){clearInterval(timer);timer=null;}current=next;dialog=false;inputError='';if(next==='ready'){ownReady=false;partnerReady=false;}if(next==='both'){ownReady=true;partnerReady=true;}if(next==='countdown')count=3;render();}
-  function showMessage(value){const element=document.getElementById('demo-message');if(element)element.textContent=value;}
-  function render(){
-    document.getElementById('phone').innerHTML=body(current);
-    document.querySelectorAll('[data-state]').forEach(b=>b.classList.toggle('active',b.dataset.state===current));
-    document.getElementById('state-description').textContent={create:'房主可确认比赛设置并创建房间。',join:'加入者输入房间码。草图暂用6位数字，正式格式与接口对齐。',waiting:'房主等待另一人加入；可复制、邀请或退出。',ready:'每个人只能更改自己的准备状态，开始按钮在未全部准备时不可点击。',both:'只有房主显示可用的开始比赛按钮；加入者等待房主开始。',countdown:'双方看到同一倒计时。断线或成员退出时不能按旧状态继续开赛。',full:'房间人数达到上限，返回输入页并保留已输入的房间码。',expired:'房间关闭或过期，提示重新加入或创建。',offline:'保留原房间上下文，重试原连接，避免自动创建重复房间。',started:'仅指明将来答题页面的接入位置，不实现出题。'}[current];
-    const input=document.querySelector('#phone input');if(input)input.oninput=e=>{roomCode=e.target.value;};
+
+  function readRoom() {
+    const snapshot = copy(mockRoom);
+    if (!snapshot) return null;
+    if (snapshot.phase === 'countdown' && Date.now() >= snapshot.startAt) snapshot.phase = 'playing';
+    if (snapshot.phase === 'playing' && Date.now() >= snapshot.endAt) snapshot.phase = 'finished';
+    return snapshot;
   }
-  const sets={flow:['create','join','waiting'],ready:['ready','both','countdown'],errors:['full','expired','offline']};
-  if(sheet){
+
+  function roomView(snapshot) {
+    if (snapshot.phase === 'waiting') {
+      if (snapshot.members.length < 2) return 'waiting';
+      return snapshot.members.every(member => member.ready) ? 'both' : 'ready';
+    }
+    return { countdown: 'countdown', playing: 'started', finished: 'finished', cancelled: 'cancelled' }[snapshot.phase];
+  }
+
+  function stopClock() { if (timer !== null) clearInterval(timer); timer = null; }
+  function showMessage(message) { document.getElementById('demo-message').textContent = message; }
+
+  // 接收已有房间快照与首次进入预置示例分开；恢复时不重新初始化准备或 startAt。
+  function receiveRoom() {
+    stopClock();
+    displayedRoom = readRoom();
+    current = roomView(displayedRoom);
+    dialog = false; inputError = '';
+    render();
+    if (['countdown', 'started'].includes(current)) {
+      timer = setInterval(() => {
+        displayedRoom = readRoom(); current = roomView(displayedRoom); render();
+        if (!['countdown', 'started'].includes(current)) stopClock();
+      }, 200);
+    }
+  }
+
+  function setState(next) {
+    stopClock(); dialog = false; inputError = ''; pendingJoin = false;
+    mockRoom = null; displayedRoom = null; role = 'host'; current = next;
+    if (['waiting', 'ready', 'both', 'countdown'].includes(next)) {
+      mockRoom = newRoom(next === 'waiting' ? 1 : 2, ['both', 'countdown'].includes(next));
+      if (next === 'countdown') startRoom(); else receiveRoom();
+    } else if (next === 'offline') {
+      mockRoom = newRoom(1); displayedRoom = copy(mockRoom); render();
+      showMessage('预置示例：原房间为 1 / 2 人；连接失败不改变成员。');
+    } else render();
+    if (next !== 'offline') showMessage('已切换预置示例；右侧按钮可模拟后续服务端事件。');
+  }
+
+  function startRoom() {
+    const snapshot = readRoom();
+    if (!snapshot || snapshot.phase !== 'waiting' || snapshot.members.length !== 2 || !snapshot.members.every(m => m.ready)) {
+      showMessage('模拟服务端拒绝开始：需要两名成员均已准备。'); return;
+    }
+    const startAt = Date.now() + 3000;
+    mockRoom = { ...snapshot, phase: 'countdown', attemptId: 'demo-attempt-' + (++attemptSerial),
+      startAt, endAt: startAt + 120000,
+      lastEvent: '模拟服务端事件：房主开始新批次，确定同一 startAt。' };
+    afterServerEvent();
+  }
+
+  function afterServerEvent() {
+    if (current !== 'offline') receiveRoom();
+    showMessage(mockRoom.lastEvent + (current === 'offline' ? ' 当前仍断线，点击重试连接读取结果。' : ''));
+  }
+
+  function cancelStart() {
+    const snapshot = readRoom();
+    if (!snapshot || snapshot.phase !== 'countdown') {
+      showMessage('模拟服务端拒绝取消：当前不在开赛前倒计时，已开赛时不能取消开始。'); return;
+    }
+    mockRoom = { ...snapshot, phase: 'waiting', startAt: null, endAt: null,
+      members: snapshot.members.map(member => ({ ...member, ready: false })),
+      lastEvent: '模拟服务端事件：参与者取消开始，旧批次作废；保留两名成员并清除双方准备。' };
+    afterServerEvent();
+  }
+
+  function disconnect() {
+    if (current === 'offline') { showMessage('仍然断线；原房间和开赛时间保持不变，请重试连接。'); return; }
+    if (!mockRoom) { showMessage('请先创建或加入房间，再模拟房间连接失败。'); return; }
+    stopClock(); current = 'offline'; dialog = false; render();
+    showMessage('模拟连接中断：没有成员退出，也没有取消开始；原定开赛时间继续生效。');
+  }
+
+  function retry() {
+    if (pendingJoin) {
+      mockRoom = newRoom(); pendingJoin = false;
+      mockRoom.lastEvent = '模拟服务端事件：本次重试接受加入，返回两名成员、双方未准备。';
+    }
+    if (!mockRoom) { showMessage('没有可恢复的房间，请返回加入页面。'); return; }
+    receiveRoom();
+    const states = { waiting: '仍为一人等待', ready: '仍在两人准备', both: '双方已准备',
+      countdown: '仍在倒计时，按原 startAt 继续', started: '已开赛，进入答题页接入位置',
+      finished: '已结束，进入结果页接入位置', cancelled: '房间已取消' };
+    showMessage('已读取模拟服务端快照：' + states[current] + '。' +
+      (displayedRoom.lastEvent || '成员及各自准备状态保持不变；没有模拟退出或取消事件。'));
+  }
+
+  function button(label, action, kind = '', disabled = false) {
+    return '<button class="button ' + kind + '" data-action="' + action + '"' + (disabled ? ' disabled' : '') + '>' + label + '</button>';
+  }
+  function settings() {
+    return '<div class="card"><div class="card-title">比赛内容</div><div class="kv"><span class="key">年级</span><span class="value">二年级</span></div><div class="kv"><span class="key">题型</span><span class="value">表内乘法</span></div><div class="kv"><span class="key">题量 / 时长</span><span class="value">20 道 / 120 秒</span></div></div>';
+  }
+  function members(snapshot) {
+    const own = snapshot.members.find(member => member.seat === role);
+    const partner = snapshot.members.find(member => member.seat !== role);
+    function memberRow(member, self) {
+      return '<div class="member ' + (member ? '' : 'member-empty') + '"><div class="avatar">' +
+        (self ? '我' : member ? '伴' : '＋') + '</div><div class="member-copy"><div class="member-name">' +
+        (self ? '我' : member ? '伙伴' : '等待另一位伙伴') + '</div><div class="member-role">' +
+        (member ? member.seat === 'host' ? '房主' : '加入者' : '分享房间码邀请加入') +
+        '</div></div><span class="member-state ' + (member?.ready ? 'done' : '') + '">' +
+        (!member ? '空位' : member.ready ? '✓ 已准备' : snapshot.members.length < 2 ? '已加入' : '未准备') + '</span></div>';
+    }
+    return '<div class="card"><div class="members-title">参赛成员<span>' + snapshot.members.length + ' / 2 人</span></div>' + memberRow(own, true) + memberRow(partner, false) + '</div>';
+  }
+  function roomSummary(snapshot) {
+    return '<div class="summary-mini">房间 ' + snapshot.code + ' · ' + snapshot.members.length + ' / 2 人<br>二年级 · 表内乘法 · 20 道 · 120 秒</div>';
+  }
+  function codeCard(snapshot) {
+    return '<div class="card"><div class="code-label">房间码 · 示例</div><div class="room-code">' + snapshot.code + '</div>' + button('复制房间码', 'copy', 'secondary small') + '</div>';
+  }
+
+  function body(state, snapshot = displayedRoom) {
+    let h = '';
+    if (state === 'create') h = '<h2 class="title">创建一场小比赛</h2><div class="sub">选好比赛内容，邀请一位伙伴一起参加。</div>' + settings() + button('修改比赛设置', 'settings', 'secondary') + button('创建房间', 'create') + button('输入房间码加入', 'join', 'tertiary') + '<div class="hint">同一房间使用相同题目和规则。</div>';
+    else if (state === 'join') h = '<h2 class="title">加入伙伴的房间</h2><div class="sub">输入对方分享的房间码。</div><div class="card"><div class="field-label">房间码</div><input class="code-input ' + (inputError ? 'input-error' : '') + '" maxlength="6" inputmode="numeric" placeholder="请输入6位数字房间码" aria-label="房间码">' + (inputError ? '<div class="error-text">' + inputError + '</div>' : '<div class="hint">可以向房主索取房间码。</div>') + '</div>' + button('加入房间', 'submit-join') + button('我来创建房间', 'to-create', 'secondary');
+    else if (['waiting', 'ready', 'both'].includes(state)) {
+      const waiting = snapshot.members.length < 2, both = snapshot.members.every(member => member.ready);
+      const ownReady = snapshot.members.find(member => member.seat === role)?.ready;
+      h = '<h2 class="title">' + (waiting ? '等一位伙伴加入' : both ? '准备好就开始吧' : '两个人都准备好再开始') + '</h2><div class="sub">' + (waiting ? '把房间码发给伙伴，加入后一起准备。' : '房间 ' + snapshot.code + ' · 比赛内容由房主设置') + '</div>' + (waiting ? codeCard(snapshot) : '') + members(snapshot) + roomSummary(snapshot);
+      if (waiting) h += button('邀请伙伴', 'invite') + button('退出房间', 'exit', 'secondary');
+      else h += button(ownReady ? '取消准备' : '我准备好了', 'toggle-ready', 'secondary') +
+        (role === 'host' ? button('开始比赛', 'start', '', !both) : button('等待房主开始', 'noop', '', true)) +
+        '<div class="hint center">' + (both ? '双方已准备。' : '双方准备后，房主才能开始比赛。') + '</div>' + button('退出房间', 'exit', 'tertiary');
+    } else if (state === 'countdown') {
+      const count = Math.max(1, Math.ceil((snapshot.startAt - Date.now()) / 1000));
+      h = '<div class="center"><span class="badge">双方已准备</span><h2 class="title" style="margin-top:15px">比赛马上开始</h2><div class="sub">请准备作答，倒计时结束后进入比赛。</div><div class="count-circle">' + count + '</div>' + roomSummary(snapshot) + button('取消开始', 'cancel-start', 'secondary') + '<div class="hint">重连后按原定开赛时间继续，不重新倒计时。</div></div>';
+    } else if (state === 'full') h = '<div class="center"><div class="symbol">2/2</div><h2 class="title">这个房间已经满了</h2><div class="sub">房间只接受两人参赛。<br>请检查房间码，或自己创建新房间。</div></div>' + button('重新输入房间码', 'join') + button('创建新房间', 'to-create', 'secondary');
+    else if (state === 'expired') h = '<div class="center"><div class="symbol warning">!</div><h2 class="title">房间已失效</h2><div class="sub">房间可能已经关闭或过期。<br>请向伙伴索取新的房间码。</div></div>' + button('重新输入房间码', 'join') + button('创建新房间', 'to-create', 'secondary');
+    else if (state === 'offline') h = '<div class="center"><div class="symbol">···</div><h2 class="title">暂时无法连接房间</h2><div class="sub">请检查网络后重试。<br>重试将读取原房间的当前状态。</div></div>' + (snapshot ? roomSummary(snapshot) : '') + '<div class="card"><div class="card-title">保留本次设置</div><div class="hint">断线不会移除成员、清除准备或暂停原定开赛时间。</div></div>' + button('重试连接', 'retry') + button('返回加入页面', 'join', 'secondary');
+    else if (state === 'cancelled') h = '<div class="center"><div class="symbol warning">!</div><h2 class="title">房间已取消</h2><div class="sub">模拟服务端已关闭本房间，不能继续旧倒计时。</div></div>' + roomSummary(snapshot) + '<div class="hint">上述成员为关闭前的参赛名单。</div>' + button('创建新房间', 'to-create') + button('重新输入房间码', 'join', 'secondary');
+    else if (state === 'finished') h = '<div class="center"><div class="symbol">✓</div><h2 class="title">本场比赛已结束</h2><div class="sub">原定比赛截止时间已到。<br>这里仅表示结果页接入位置，尚未实现判分。</div></div>' + roomSummary(snapshot) + button('返回房间草图', 'to-create', 'secondary');
+    else h = '<div class="center"><div class="symbol">✓</div><h2 class="title">下一步：比赛答题页</h2><div class="sub">原定开赛时间已到。<br>这里仅表示答题页接入位置，尚未实现作答。</div></div>' + roomSummary(snapshot) + button('返回房间草图', 'to-create', 'secondary');
+    return '<div class="bar">双人比赛</div><div class="content">' + h + '</div>' + (dialog ? '<div class="overlay"><div class="dialog"><h3>' + (role === 'host' ? '退出并关闭房间？' : '退出当前房间？') + '</h3><p>' + (role === 'host' ? '另一位伙伴将无法继续使用这个房间。' : '退出后，你将不再参与本场比赛。') + '</p>' + button('继续留在房间', 'stay', 'secondary') + button('确认退出', 'confirm-exit') + '</div></div>' : '');
+  }
+
+  function render() {
+    document.getElementById('phone').innerHTML = body(current);
+    document.querySelectorAll('[data-state]').forEach(b => b.classList.toggle('active', b.dataset.state === current));
+    document.getElementById('state-description').textContent = {
+      create: '房主可确认比赛设置并创建房间。', join: '加入者输入房间码。草图暂用6位数字，正式格式与接口对齐。',
+      waiting: '原房间只有一人时显示等待；连接失败不会改变成员人数。', ready: '每个人只能更改自己的准备状态；恢复时保留各自状态。',
+      both: '只有房主可开始，加入者等待房主开始。', countdown: '根据原 startAt 显示倒计时；断线本身不取消开赛。',
+      full: '房间人数达到上限，返回输入页并保留已输入的房间码。', expired: '房间关闭或过期，提示重新加入或创建。',
+      offline: '重试读取模拟服务端快照；可能仍在准备、倒计时、已开赛、已结束或被明确取消。',
+      started: '已到开赛时间，仅演示答题页接入位置。', finished: '已到原定截止时间，仅演示结果页接入位置。',
+      cancelled: '有明确的模拟服务端关闭事件，旧批次不能继续。'
+    }[current];
+    const input = document.querySelector('#phone input');
+    if (input) { input.value = roomCode; input.oninput = e => { roomCode = e.target.value; }; }
+  }
+
+  const sets = { flow: ['create', 'join', 'waiting'], ready: ['ready', 'both', 'countdown'], errors: ['full', 'expired', 'offline'] };
+  if (sheet) {
     document.body.classList.add('sheet');
-    document.getElementById('main').innerHTML='<div class="columns">'+sets[sheet].map(state=>{ownReady=state==='both';partnerReady=state==='both';return '<section class="column"><div class="caption">'+stateList.find(s=>s[0]===state)[1]+'<br><small>'+stateList.find(s=>s[0]===state)[2]+'</small></div><div class="screen">'+body(state)+'</div></section>';}).join('')+'</div><div class="footer">草图示例：房间码482731，二年级表内乘法、20道、120秒。仅演示页面状态，不是真实房间或比赛记录。<br>页面保持现有浅灰底、白色面板、深绿色按钮；正式房间接口和规则待组内对齐。本轮没有修改小程序代码。</div>';
+    document.getElementById('main').innerHTML = '<div class="columns">' + sets[sheet].map(state => {
+      const snapshot = newRoom(state === 'waiting' || state === 'offline' ? 1 : 2, ['both', 'countdown'].includes(state));
+      if (state === 'countdown') { snapshot.phase = 'countdown'; snapshot.startAt = Date.now() + 3000; }
+      const title = stateList.find(s => s[0] === state);
+      return '<section class="column"><div class="caption">' + title[1] + '<br><small>' + title[2] + '</small></div><div class="screen">' + body(state, snapshot) + '</div></section>';
+    }).join('') + '</div><div class="footer">草图示例：房间码482731，二年级表内乘法、20道、120秒。仅演示页面状态，不是真实房间或比赛记录。<br>页面保持现有浅灰底、白色面板、深绿色按钮；本轮没有修改小程序代码。</div>';
     return;
   }
-  document.getElementById('state-nav').innerHTML=stateList.map(s=>'<button data-state="'+s[0]+'">'+s[1]+'</button>').join('');
-  document.getElementById('state-nav').onclick=e=>{const b=e.target.closest('[data-state]');if(b)setState(b.dataset.state);};
-  document.getElementById('phone').onclick=e=>{
-    const b=e.target.closest('[data-action]');if(!b||b.disabled)return;
-    const action=b.dataset.action;
-    if(action==='create'){role='host';setState('waiting');}
-    else if(action==='join')setState('join');
-    else if(action==='to-create'){role='host';setState('create');}
-    else if(action==='submit-join'){
-      if(!/^\d{6}$/.test(roomCode)){inputError='请输入6位数字房间码';render();return;}
-      role='guest';previous='ready';
-      if(roomCode==='111111')setState('full');else if(roomCode==='222222')setState('expired');else if(roomCode==='333333')setState('offline');else{setState('ready');ownReady=false;partnerReady=false;render();}
-    }else if(action==='toggle-ready'){ownReady=!(current==='both'||ownReady);if(current==='both'){current='ready';partnerReady=true;}render();}
-    else if(action==='start'){
-      if(role!=='host'||!(current==='both'||(ownReady&&partnerReady)))return;
-      setState('countdown');timer=setInterval(()=>{count--;if(count===0)setState('started');else render();},1000);
-    }else if(action==='cancel-start'){setState('ready');ownReady=false;partnerReady=false;render();}
-    else if(action==='exit'){dialog=true;render();}
-    else if(action==='stay'){dialog=false;render();}
-    else if(action==='confirm-exit'){setState('create');showMessage('已演示退出。房主关闭房间后，应通知另一位参与者。');}
-    else if(action==='retry'){setState(previous);showMessage('草图模拟恢复成功；正式结果由房间接口决定。');}
-    else if(action==='copy')showMessage('复制按钮示意：房间码482731。本草图没有修改剪贴板。');
-    else if(action==='invite')showMessage('邀请入口示意：正式版接入微信分享，本草图不会发送消息。');
-    else if(action==='settings')showMessage('修改设置入口：正式版复用已有练习设置，房间内参与者看到同一组参数。');
+
+  document.getElementById('state-nav').innerHTML = stateList.map(s => '<button data-state="' + s[0] + '">' + s[1] + '</button>').join('');
+  document.getElementById('state-nav').onclick = e => { const b = e.target.closest('[data-state]'); if (b) setState(b.dataset.state); };
+  document.getElementById('phone').onclick = e => {
+    const b = e.target.closest('[data-action]'); if (!b || b.disabled) return;
+    const action = b.dataset.action;
+    if (action === 'create') setState('waiting');
+    else if (action === 'join') setState('join');
+    else if (action === 'to-create') setState('create');
+    else if (action === 'submit-join') {
+      if (!/^\d{6}$/.test(roomCode)) { inputError = '请输入6位数字房间码'; render(); return; }
+      if (roomCode === '111111') setState('full');
+      else if (roomCode === '222222') setState('expired');
+      else {
+        stopClock(); role = 'guest'; mockRoom = null; displayedRoom = null;
+        if (roomCode === '333333') { pendingJoin = true; current = 'offline'; render(); showMessage('模拟首次加入请求连接失败；重试时演示服务端接受加入的结果。'); }
+        else { mockRoom = newRoom(); receiveRoom(); }
+      }
+    } else if (action === 'toggle-ready') {
+      const snapshot = readRoom();
+      if (snapshot.phase !== 'waiting' || snapshot.members.length !== 2) return;
+      const own = snapshot.members.find(member => member.seat === role); own.ready = !own.ready;
+      snapshot.lastEvent = '模拟服务端事件：我' + (own.ready ? '已准备。' : '取消准备。'); mockRoom = snapshot; afterServerEvent();
+    } else if (action === 'start') { if (role === 'host') startRoom(); }
+    else if (action === 'cancel-start') cancelStart();
+    else if (action === 'exit') { dialog = true; render(); }
+    else if (action === 'stay') { dialog = false; render(); }
+    else if (action === 'confirm-exit') { setState('create'); showMessage('模拟明确退出；房主退出关闭房间，与网络中断分开处理。'); }
+    else if (action === 'retry') retry();
+    else if (action === 'copy') showMessage('复制按钮示意：房间码482731。本草图没有修改剪贴板。');
+    else if (action === 'invite') showMessage('邀请入口示意：正式版接入微信分享，本草图不会发送消息。');
+    else if (action === 'settings') showMessage('修改设置入口：正式版复用已有练习设置，房间内参与者看到同一组参数。');
   };
-  document.getElementById('demo-tools').onclick=e=>{
-    const b=e.target.closest('[data-demo]');if(!b)return;
-    if(b.dataset.demo==='partner-join')setState('ready');
-    else if(b.dataset.demo==='partner-ready'){if(!['ready','both'].includes(current))setState('ready');partnerReady=!partnerReady;if(current==='both')current='ready';render();}
-    else if(b.dataset.demo==='role'){role=role==='host'?'guest':'host';render();showMessage('当前演示身份：'+(role==='host'?'房主':'加入者'));}
-    else if(b.dataset.demo==='offline'){previous=['waiting','ready','both'].includes(current)?current:'waiting';setState('offline');}
-    else if(b.dataset.demo==='host-start'){ownReady=true;partnerReady=true;setState('countdown');timer=setInterval(()=>{count--;if(count===0)setState('started');else render();},1000);}
+  document.getElementById('demo-tools').onclick = e => {
+    const b = e.target.closest('[data-demo]'); if (!b) return;
+    const action = b.dataset.demo;
+    if (action === 'offline') { disconnect(); return; }
+    if (action === 'role') {
+      if (!displayedRoom || displayedRoom.members.length !== 2) { showMessage('请先打开一个两人房间，再切换演示身份。'); return; }
+      role = role === 'host' ? 'guest' : 'host'; render(); showMessage('当前演示身份：' + (role === 'host' ? '房主' : '加入者')); return;
+    }
+    if (action === 'cancel-start') { cancelStart(); return; }
+    if (action === 'host-start') { startRoom(); return; }
+    const snapshot = readRoom();
+    if (!snapshot) { showMessage('请先创建或加入房间，再模拟服务端事件。'); return; }
+    if (action === 'close-room') {
+      if (!['waiting', 'countdown'].includes(snapshot.phase)) {
+        showMessage('模拟服务端拒绝关闭：已经开赛或结束，不能按开赛前退出取消本局。'); return;
+      }
+      mockRoom = { ...snapshot, phase: 'cancelled', startAt: null, endAt: null,
+        lastEvent: '模拟服务端事件：房主明确关闭房间；参赛名单保留用于说明，旧批次已作废。' };
+      afterServerEvent(); return;
+    }
+    if (snapshot.phase !== 'waiting') { showMessage('当前不是准备阶段，不能模拟成员加入或准备变化。'); return; }
+    if (action === 'partner-join') {
+      if (snapshot.members.length !== 1) { showMessage('房间已有两名成员，不重复加入。'); return; }
+      snapshot.members.push({ seat: 'guest', ready: false });
+      snapshot.lastEvent = '模拟服务端事件：伙伴加入原房间，双方未准备。';
+    } else if (action === 'partner-ready') {
+      const partner = snapshot.members.find(member => member.seat !== role);
+      if (!partner) { showMessage('伙伴尚未加入，请先模拟伙伴加入。'); return; }
+      partner.ready = !partner.ready;
+      snapshot.lastEvent = '模拟服务端事件：伙伴' + (partner.ready ? '已准备。' : '取消准备。');
+    }
+    mockRoom = snapshot; afterServerEvent();
   };
   render();
-})([["create","01 创建房间","房主确认比赛内容后创建"],["join","02 输入房间码","加入者输入房间码并加入"],["waiting","03 等待另一人","1/2人，邀请或退出"],["ready","04 两人准备","双方分别确认准备"],["both","05 双方就绪","房主可以开始比赛"],["countdown","06 开始前倒计时","双方同时看到3、2、1"],["full","07 房间已满","修改房间码或自行创建"],["expired","08 房间已失效","重新加入或创建新房间"],["offline","09 连接失败","保留设置，重试原房间"]]);</script></html>
+})([["create","01 创建房间","房主确认比赛内容后创建"],["join","02 输入房间码","加入者输入房间码并加入"],["waiting","03 等待另一人","1/2人，邀请或退出"],["ready","04 两人准备","双方分别确认准备"],["both","05 双方就绪","房主可以开始比赛"],["countdown","06 开始前倒计时","按同一startAt倒计时"],["full","07 房间已满","修改房间码或自行创建"],["expired","08 房间已失效","重新加入或创建新房间"],["offline","09 连接失败","读取原房间快照恢复"]]);
+</script></html>
