@@ -1,35 +1,53 @@
-<view class="page">
-  <view class="title">选一组选项</view>
-  <view class="subtitle">先看看你希望怎样练习</view>
-  <view class="status">设置预览 · 尚未生成题目</view>
-  <view class="card">
-    <view class="field">
-      <text class="label">练习模式</text>
-      <view class="choices">
-        <button class="choice {{config.mode === 'normal' ? 'active' : ''}}" data-value="normal" bindtap="chooseMode">不限时</button>
-        <button class="choice {{config.mode === 'timed' ? 'active' : ''}}" data-value="timed" bindtap="chooseMode">限时</button>
+<view class="page settings-page">
+  <view class="settings-heading">这次想练什么？</view>
+  <view class="settings-description">选好年级、题型和题量，下一步核对设置。</view>
+  <view class="selection-notice" wx:if="{{notice}}">{{notice}}</view>
+  <view class="settings-panel">
+    <view class="setting-group">
+      <view class="setting-label">练习方式</view>
+      <view class="option-row">
+        <button class="setting-option mode-option {{config.mode === 'normal' ? 'is-selected' : ''}}" data-value="normal" bindtap="chooseMode" hover-class="option-pressed"><view>普通练习</view><view class="option-description">不限时</view><text wx:if="{{config.mode === 'normal'}}" class="option-check">✓</text></button>
+        <button class="setting-option mode-option {{config.mode === 'timed' ? 'is-selected' : ''}}" data-value="timed" bindtap="chooseMode" hover-class="option-pressed"><view>限时练习</view><view class="option-description">自选时长</view><text wx:if="{{config.mode === 'timed'}}" class="option-check">✓</text></button>
       </view>
     </view>
-    <view class="field">
-      <text class="label">题型</text>
-      <view class="choices">
-        <button class="choice {{config.operation === 'add' ? 'active' : ''}}" data-value="add" bindtap="chooseOperation">加法</button>
-        <button class="choice {{config.operation === 'subtract' ? 'active' : ''}}" data-value="subtract" bindtap="chooseOperation">减法</button>
+    <view class="setting-group">
+      <view class="setting-label">年级<text class="label-detail">单选</text></view>
+      <view class="option-row">
+        <button wx:for="{{grades}}" wx:key="value" class="setting-option grade-option {{config.grade === item.value ? 'is-selected' : ''}}" data-value="{{item.value}}" bindtap="chooseGrade" hover-class="option-pressed">{{item.label}}<text wx:if="{{config.grade === item.value}}" class="grade-check">✓</text></button>
       </view>
-      <view class="note">当前预览：20 以内加减法。乘除法后续开放。</view>
     </view>
-    <view class="field">
-      <text class="label">题量（10—50 道）</text>
-      <input class="number-input" type="number" maxlength="3" value="{{countText}}" bindinput="changeCount" placeholder="默认 30 道" />
-    </view>
-    <view class="field" wx:if="{{config.mode === 'timed'}}">
-      <text class="label">时长</text>
-      <view class="choices">
-        <button wx:for="{{durations}}" wx:key="*this" class="choice {{config.durationSeconds === item ? 'active' : ''}}" data-value="{{item}}" bindtap="chooseDuration">{{item}} 秒</button>
+    <view class="setting-group">
+      <view class="setting-label">题型<text class="label-detail">每次选一种</text></view>
+      <view class="option-row family-row" wx:if="{{config.grade === 3}}">
+        <button wx:for="{{ruleGroups}}" wx:key="value" class="setting-option family-option {{selectedRule.group === item.value ? 'is-selected' : ''}}" data-value="{{item.value}}" bindtap="chooseGroup" hover-class="option-pressed">{{item.label}}<text wx:if="{{selectedRule.group === item.value}}" class="family-check">✓</text></button>
       </view>
-      <view class="note">实际答题开始后才计时，当前预览不会开始倒计时。</view>
+      <view class="type-grid">
+        <view wx:for="{{visibleRules}}" wx:key="id" class="type-cell {{item.wide ? 'type-cell-wide' : ''}}">
+          <button class="setting-option type-option {{config.ruleId === item.id ? 'is-selected' : ''}}" data-value="{{item.id}}" bindtap="chooseRule" hover-class="option-pressed"><view class="type-name">{{item.label}}</view><view class="type-description">{{item.rangeLabel}}</view><text wx:if="{{config.ruleId === item.id}}" class="option-check">✓</text></button>
+        </view>
+      </view>
+      <view class="rule-example">
+        <text class="example-label">示例：</text>
+        <view wx:if="{{selectedRule.exampleKind === 'fraction'}}" class="fraction-example"><view class="fraction"><text class="fraction-numerator">{{selectedRule.fractionExample.leftNumerator}}</text><text class="fraction-denominator">{{selectedRule.fractionExample.denominator}}</text></view><text>＋</text><view class="fraction"><text class="fraction-numerator">{{selectedRule.fractionExample.rightNumerator}}</text><text class="fraction-denominator">{{selectedRule.fractionExample.denominator}}</text></view><text>＝ ?</text></view>
+        <text wx:else>{{selectedRule.example}}</text>
+      </view>
+      <view class="field-hint" wx:if="{{selectedRule.note}}">{{selectedRule.note}}</view>
     </view>
-    <view class="error" wx:if="{{error}}">{{error}}</view>
-    <button class="primary" bindtap="previewPractice">查看答题页</button>
+    <view class="setting-group">
+      <view class="setting-label">题量<text class="label-detail">10—50 道</text></view>
+      <view class="count-box {{error ? 'count-box-error' : ''}}"><input class="count-input" type="number" maxlength="3" value="{{countText}}" bindinput="changeCount" placeholder="输入题量" placeholder-class="count-placeholder" confirm-type="done" aria-label="题量，10到50之间的整数" /><text class="count-unit">道</text></view>
+      <view class="field-error" wx:if="{{error}}">{{error}}</view>
+      <view class="field-hint" wx:else>可以修改数字，默认每组 30 道。</view>
+    </view>
+    <view class="setting-group duration-group" wx:if="{{config.mode === 'timed'}}">
+      <view class="setting-label">练习时长</view>
+      <view class="option-row">
+        <button wx:for="{{durations}}" wx:key="*this" class="setting-option duration-option {{config.durationSeconds === item ? 'is-selected' : ''}}" data-value="{{item}}" bindtap="chooseDuration" hover-class="option-pressed">{{item}} 秒<text wx:if="{{config.durationSeconds === item}}" class="duration-check">✓</text></button>
+      </view>
+      <view class="field-hint">进入实际答题后才开始计时。</view>
+    </view>
   </view>
+  <view class="selection-summary">已选：{{selectionSummary}}</view>
+  <button class="settings-submit" bindtap="previewPractice" hover-class="submit-pressed">确认设置，查看下一页<text class="submit-arrow">→</text></button>
+  <view class="settings-footnote">当前为设置预览，下一页可核对参数，暂不生成题目。</view>
 </view>

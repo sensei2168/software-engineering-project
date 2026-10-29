@@ -1,0 +1,6 @@
+miniapp/project.private.config.json
+miniapp/.idea/
+miniapp/.vscode/
+node_modules/
+.DS_Store
+Thumbs.db

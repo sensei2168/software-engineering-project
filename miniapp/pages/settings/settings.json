@@ -1,1 +1,5 @@
-{"navigationBarTitleText":"练习设置"}
+{
+  "navigationBarTitleText": "练习设置",
+  "navigationBarBackgroundColor": "#F5F7FA",
+  "backgroundColor": "#F5F7FA"
+}
