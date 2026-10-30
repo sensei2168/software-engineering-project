@@ -13,8 +13,13 @@ class RoomError extends Error {
 }
 const fail = (code, message) => { throw new RoomError(code, message); };
 function fields(value, allowed, name) {
-  if (!value || typeof value !== 'object' || Array.isArray(value) ||
-      Object.keys(value).some(key => !allowed.includes(key))) fail('INVALID_ARGUMENT', name + '格式不正确');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('INVALID_ARGUMENT', name + '必须是对象');
+  const unexpected = Object.keys(value).filter(key => !allowed.includes(key));
+  if (unexpected.length) {
+    // 只返回受限的字段名，绝不回显字段值、OPENID 或整个请求。
+    const names = unexpected.slice(0, 5).map(key => /^[A-Za-z_][A-Za-z0-9_]{0,39}$/.test(key) ? key : '[其他字段]');
+    fail('INVALID_ARGUMENT', name + '包含不支持的字段：' + names.join('、'));
+  }
 }
 function requestId(value) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{16,96}$/.test(value)) fail('INVALID_ARGUMENT', '请求编号格式不正确');
@@ -45,7 +50,8 @@ function config(input) {
     count: input.count, mode: 'timed', durationSeconds: input.durationSeconds };
 }
 function parse(event) {
-  fields(event, ['action', 'payload', 'requestId'], '请求');
+  // 平台可能附加 userInfo/tcbContext；只忽略它们，身份仍取 getWXContext。
+  fields(event, ['action', 'payload', 'requestId', 'userInfo', 'tcbContext'], '请求');
   const action = event.action, payload = event.payload === undefined ? {} : event.payload;
   if (action === 'whoami') { fields(payload, [], '身份查询'); return { action, payload: {} }; }
   if (action === 'get') {

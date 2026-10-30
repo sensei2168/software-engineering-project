@@ -30,6 +30,20 @@ test('all agreed rule presets validate without claiming questions are generated'
   }
 });
 
+test('Cloud event identity metadata is ignored; only trusted context determines identity and ownership', async () => {
+  const f = fixture(), metadata = { userInfo: { appId: APP_ID, openId: 'a' },
+    tcbContext: { OPENID: 'a', APPID: APP_ID, ENV: 'untrusted-environment' } };
+  const who = await f.service({ action: 'whoami', ...metadata }, f.context('b'));
+  assert.equal(who.ok, true);
+  assert.equal(who.data.userId, (await f.call('b', 'whoami')).data.userId);
+  assert.equal(who.data.environmentId, 'test-environment');
+  error(await f.service({ action: 'whoami', ...metadata }, {}), 'AUTH_REQUIRED');
+  const result = await f.service({ action: 'create', payload: { config: f.config }, requestId: f.id(), ...metadata }, f.context('b'));
+  assert.equal(result.ok, true);
+  error(await f.call('a', 'get', { roomId: result.data.room.roomId }), 'NOT_MEMBER');
+  assert.equal((await f.call('b', 'get', { roomId: result.data.room.roomId })).ok, true);
+});
+
 test('invalid configurations, unknown fields, request IDs and six-digit room codes are rejected', async () => {
   const f = fixture();
   for (const patch of [{ grade: 3 }, { ruleId: 'made-up' }, { count: 9 }, { count: 51 }, { count: 10.1 }, { count: '10' },
