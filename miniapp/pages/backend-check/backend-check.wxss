@@ -1,0 +1,6 @@
+.intro { margin-bottom: 28rpx; }
+.details { margin-top: 22rpx; line-height: 1.8; font-size: 26rpx; word-break: break-all; }
+.identifier { display: block; font-family: monospace; font-size: 24rpx; word-break: break-all; }
+.code-field { margin-top: 28rpx; }
+.number-input { font-size: 24rpx; }
+.error { margin-bottom: 24rpx; }

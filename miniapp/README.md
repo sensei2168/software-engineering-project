@@ -6,17 +6,21 @@
 2. 目录选择本文件所在的 `miniapp` 文件夹，而不是外层仓库。
 3. AppID 已写入 `project.config.json`：`wxeeac1150bc72adb2`。
 4. 导入后点击“编译”。以该小程序管理员或已添加的开发者身份登录。
-5. 当前使用微信原生 JavaScript、WXML、WXSS，不需要安装第三方依赖、构建 npm 或创建云环境。
+5. 普通页面使用微信原生 JavaScript、WXML、WXSS，前端无需构建 npm。新增房间后端需要单独部署云函数；普通设置页面仍可在没有云环境时运行。
 
 ## 已有与待做
 
-已有：六个注册页面、首页导航、普通／限时设置切换、一至三年级的题型选择、10—50 整数题量验证、设置到答题占位页的参数传递与摘要展示、应用头像与基础配色，以及结果页与本机练习记录（保存、重复保存去重、详情查看、确认清除）。
+已有：原六个业务页面、首页导航、普通／限时设置切换、一至三年级的题型选择、10—50 整数题量验证、设置到答题占位页的参数传递与摘要展示，以及应用头像与基础配色。结果页与本机记录已实现统计、保存、重复保存去重、详情和确认清除，真实答题与批改尚待接入。另有第七个页面 `pages/backend-check/backend-check`，用于开发版／体验版的真实后端联调，首页没有该入口。
 
 当前默认一年级、20以内加法、30题；普通练习不限时，限时练习默认120秒，可选60／120／180秒。二年级可选100以内加减法和表内乘除法；三年级可选基础四则、整数两步混合、一位小数加减及同分母分数加减。它们已由组长于 2026-10-27 确认纳入首版，来源与后续输入、精确判题、历史保存要求见[扩展题型与开赛规则确认](../docs/07_扩展题型与开赛规则确认.md)。设置预设不表示对应出题或判题已经实现，也不代表完整教材覆盖。
 
 完整题型规则、参数约定及联调说明见外层 [年级题型设置交付说明](../docs/年级题型设置交付说明.md)。页面仍只展示配置预览，不会生成题目或开始计时。
 
-未实现：实际出题与作答、计时、批改、错题订正、房间、可信身份、云函数、比赛与同步。这些页面保留占位说明；没有伪造房间、成绩或练习历史。结果页与练习记录页已可用，详见下一节。
+新增代码：`cloudfunctions/roomService` 提供身份、创建／加入／查询／准备／退出房间、容量与权限校验、重复请求处理；`utils/room-client.js` 提供调用和未确认操作恢复。已部署到 cloud1；2026-10-30 袁嘉亮确认双账号基础房间五项测试通过，第三账号、并发和真实断网恢复仍待验证。详见[接口交付](../docs/08_组长后端第一阶段交付与接口.md)及[部署指南](../docs/09_云开发部署与双账号验证.md)。
+
+共同开发环境在 `config/cloud.js` 集中配置为 `cloud1-d6gvp9cql29a1164e`。联调页首次打开会自动填入该环境；若曾手动保存其他环境，需核对并改回本环境。`createRoomClient({wxApi:wx})` 默认使用该配置，也可显式传 envId；当前普通页面不自动调用云服务。
+
+未实现：实际出题与作答、计时、批改、错题订正、正式房间页面接入、开赛／取消开赛和比赛中同步。答题页仍为占位页；结果页已提供待提交结果交接接口，不能把明确标注的开发测试数据当成真实练习已完成。
 
 这是一份开发基础项目，不能视为已完成课程要求或可发布版本。AppID 的有效性和开发权限需在开发者工具中确认；尚未确认服务类目、审核和云资源条件。
 
@@ -37,7 +41,9 @@
 | `utils/practice-session.js` | 答题页到结果页的一次练习结果交接 |
 | `utils/dev-result-fixture.js` | 开发测试数据，预期 2 正确 1 错误 1 未答、正确率 50.0% |
 
-进入方式：答题页提交后跳转；从记录页按 `id` 查看详情；或在记录页空状态点「用开发测试数据查看结果页」。最后一项是开发验证入口，正式交付前删除。
+进入方式：答题页提交后跳转；从记录页按 `id` 查看详情；或在开发版／体验版记录页空状态点「用开发测试数据查看结果页」。正式版隐藏测试按钮，并拒绝测试路由参数与方法调用；无法识别版本时也不开放。测试记录明确标记，不会清掉另一份待保存的真实结果。
+
+同一练习编号的内容必须保持一致；重复保存不同内容会报错并保留旧记录。历史结构损坏或版本不兼容时保留原数据并提示失败，不按空记录覆盖。保存和清除均回读确认；详情页只读，不能重新保存已清除的记录。
 
 ### 与批改模块的约定
 
@@ -45,12 +51,14 @@
 
 ```js
 const { setPendingResult } = require('../../utils/practice-session');
+const { RULE_VERSION } = require('../../utils/practice-rules');
 setPendingResult({
   practiceId: 'p_...',      // 必填，同一次练习保持不变，重复保存靠它去重
-  ruleId: config.ruleId,    // 记录题型编号，规则版本由保存层写入
+  ruleId: config.ruleId,
+  ruleVersion: RULE_VERSION, // 生成时固定版本，重试时保持不变
   config: config,
   items: [
-    { expression: '3＋2', question: null, userAnswer: '5', correctAnswer: '5', status: 'correct' }
+    { expression: '3＋2', question: { operands: [3, 2], operators: ['+'] }, userAnswer: '5', correctAnswer: '5', status: 'correct' }
   ]
 });
 openPage('/pages/result/result');
@@ -59,7 +67,9 @@ openPage('/pages/result/result');
 - `status` 只能是 `correct` / `wrong` / `unanswered`；
 - 漏答的 `userAnswer` 传空字符串，不要传 `0`，因为 `0` 是有效作答；
 - 精确答案（如 `1.7`、`3/5`）按原样传入，不自行取整或约分；
-- `question` 可放结构化原题（如分数题的分子分母），用于历史还原；
+- 真实出题接入时提供 `question` 结构化原题（如分数题的分子分母），用于历史还原；存储层为兼容开发样例仍允许缺省，但提供了无法序列化的快照会报错；
+- 规则版本统一为题型目录导出的 `RULE_VERSION`，与云端配置契约一致；已传入的历史版本原样保留；
+- 保存成功只清除同编号的待提交结果；保存失败时仅在当前进程内保留，不能保证关闭微信后恢复未保存结果；
 - 对错由批改模块判定，结果页只汇总，不重新判断。
 
 ## 文件与建议负责人
@@ -70,7 +80,8 @@ openPage('/pages/result/result');
 | `pages/home/`、`pages/settings/`、`pages/room/` | 首页、设置、房间交互 | 闫心如 |
 | `pages/practice/`、`utils/practice-config.js` | 答题、配置校验；后续出题批改与计时 | 何顺 |
 | `pages/result/`、`pages/history/`、`utils/result-stats.js`、`utils/record-store.js`、`utils/dev-result-fixture.js` | 结果、记录与本地存储；后续订正与断线恢复 | 彭方鑫 |
-| 后端目录待建立 | 身份权限、房间与服务端比赛流程 | 袁嘉亮、何顺；彭方鑫协助同步 |
+| `cloudfunctions/roomService/`、`pages/backend-check/` | 身份权限、基础房间后端及联调 | 袁嘉亮；后续何顺接入裁判，彭方鑫协助同步 |
+| `utils/room-client.js` | 统一云函数调用、待确认请求恢复 | 袁嘉亮维护接口；闫心如、彭方鑫复用 |
 
 AppID 是项目标识，不是 AppSecret。当前代码无需填写 AppSecret；不要把密钥放入客户端或公开仓库。
 
@@ -83,7 +94,7 @@ AppID 是项目标识，不是 AppSecret。当前代码无需填写 AppSecret；
 - 空题量、9、51 等无效输入不能进入答题页；10、30、50 能进入，摘要与设置一致。
 - 答题页明确显示正在准备，不生成题目、不启动计时。
 - 下一页显示年级、题型、范围、题量、模式和适用的时长；返回设置可继续修改。
-- 房间及记录入口能打开，说明功能尚未开放。
+- 房间入口仍显示占位说明；记录入口打开真实的本机记录列表。
 - 记录页空状态点「用开发测试数据查看结果页」，结果页显示总题数 4、正确 2、错误 1、未答 1、正确率 50.0%，并标注「开发测试数据」。
 - 结果页逐题显示用户答案与正确答案；第 3 题显示 `0`，第 4 题显示「未作答」，两者不能混淆。
 - 返回记录页能看到刚保存的 1 条记录，点开可看详情；重复进入结果页或点「再次保存」，记录数仍为 1。
@@ -94,10 +105,12 @@ AppID 是项目标识，不是 AppSecret。当前代码无需填写 AppSecret；
 
 在外层本地仓库目录运行 `node --test tests/practice-settings.test.cjs`，覆盖全部题型在两种模式下的参数往返、切换规则、非法配置和旧链接兼容。该检查不替代微信开发者工具和真机验证。
 
-结果页与练习记录运行 `node --test tests/result-history.test.cjs`，共 28 项，覆盖统计口径、重复保存去重、关闭重开后重读、保存失败如实报错、规则版本与摘要快照、旧规则记录仍可显示，以及页面在无数据／有数据／失败三种情况下的行为。该检查不替代开发者工具与真机验证。
+结果页与练习记录运行 `node --test tests/result-history.test.cjs`，共 40 项，覆盖统计、保存去重、失败和异常数据保护、版本限制、待提交结果隔离、历史只读与规则版本。该检查不替代开发者工具与真机验证。
+
+运行 `node --test tests/*.test.cjs` 检查设置、房间业务、客户端恢复及联调页。运行 `node scripts/sync-room-contract.cjs --check` 核对前后端题型配置；规则修改后先评审，再运行不带 `--check` 的命令更新生成文件。测试没有连接真实云环境。
 
 布局回归可运行 `node tests/settings-layout.browser.cjs`，需要本机Chrome（可用CHROME_PATH指定路径）。它检查320／375／430宽度下原生按钮默认尺寸是否导致重叠或越界；不替代真机复查。
 
 ## 配置参考
 
-项目配置参考 [微信官方示例](https://github.com/wechat-miniprogram/miniprogram-demo/blob/master/project.config.json)，页面注册参考 [官方 app.json 示例](https://github.com/wechat-miniprogram/miniprogram-demo/blob/master/miniprogram/app.json)。本项目未引入示例中的第三方依赖或云服务。
+项目配置参考 [微信官方示例](https://github.com/wechat-miniprogram/miniprogram-demo/blob/master/project.config.json)，页面注册参考 [官方 app.json 示例](https://github.com/wechat-miniprogram/miniprogram-demo/blob/master/miniprogram/app.json)。房间后端单独依赖 `wx-server-sdk@4.0.2`；云函数目录从前端代码包中排除。
