@@ -1,18 +1,147 @@
-<view class="page">
-  <view class="status">即将开放</view>
-  <view class="title">练习正在准备中</view>
-  <view class="card" wx:if="{{config}}">
-    <view class="card-title">本次选择</view>
-    <view class="summary-line">年级：{{display.gradeLabel}}</view>
-    <view class="summary-line">题型：{{display.ruleLabel}}</view>
-    <view class="summary-line">范围：{{display.rangeLabel}}</view>
-    <view class="summary-line">题量：{{config.count}} 道</view>
-    <view class="summary-line">模式：{{config.mode === 'timed' ? '限时练习' : '普通练习'}}</view>
-    <view class="summary-line" wx:if="{{config.mode === 'timed'}}">时长：{{config.durationSeconds}} 秒（尚未开始）</view>
-    <view class="note" wx:if="{{display.ruleNote}}">{{display.ruleNote}}</view>
-    <view class="note">答题功能开放后，就可以在这里开始练习。</view>
-  </view>
-  <view class="error" wx:if="{{error}}">{{error}}</view>
-  <button class="link settings-return" bindtap="backToSettings">返回练习设置</button>
-  <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
+<view class="page practice-page">
+  <view class="status" wx:if="{{loading && !error}}">正在出题，请稍候</view>
+
+  <block wx:if="{{error}}">
+    <view class="status">设置无效</view>
+    <view class="card">
+      <view class="error">{{error}}</view>
+    </view>
+    <button class="primary" bindtap="backToSettings">返回练习设置</button>
+  </block>
+
+  <block wx:if="{{!error && unavailable}}">
+    <view class="status">即将开放</view>
+    <view class="card">
+      <view class="card-title">{{unavailable.title}}</view>
+      <view class="summary-line" wx:if="{{display}}">本次选择：{{display.gradeLabel}} · {{display.ruleLabel}} · {{display.rangeLabel}}</view>
+      <view class="note">{{unavailable.message}}</view>
+      <view class="note">目前 13 个设置预设都已接入出题与判分。如果出现本提示，说明题型配置异常，请返回设置重新选择。</view>
+    </view>
+    <button class="primary" bindtap="backToSettings">返回练习设置</button>
+  </block>
+
+  <block wx:if="{{!error && !unavailable && loadError}}">
+    <view class="status">出题失败</view>
+    <view class="card">
+      <view class="error">{{loadError}}</view>
+    </view>
+    <button class="primary" bindtap="retry">重新出题</button>
+    <button class="secondary" bindtap="backToSettings">返回设置</button>
+  </block>
+
+  <block wx:if="{{!error && !unavailable && !loadError && total > 0}}">
+    <view class="quiz-head">
+      <view class="quiz-progress">第 {{currentIndex + 1}} / {{total}} 题</view>
+      <view wx:if="{{timed}}" class="quiz-timer {{remainingSeconds <= 10 ? 'urgent' : ''}}">{{remainingText}}</view>
+    </view>
+
+    <view wx:if="{{reviewMode}}" class="review-banner">
+      <view class="review-summary">本次 {{summary.total}} 题 · 对 {{summary.correct}} · 错 {{summary.wrong}} · 未答 {{summary.blank}}</view>
+      <button class="review-result-btn" size="mini" bindtap="openResultPage">查看结果</button>
+    </view>
+
+    <view class="quiz-card">
+      <view class="quiz-hint">{{display.gradeLabel}} · {{display.ruleLabel}} · {{display.rangeLabel}} · {{config.mode === 'timed' ? '限时' : '不限时'}}</view>
+      <view class="quiz-question">{{currentText}}</view>
+
+      <view wx:if="{{reviewMode}}" class="review-panel">
+        <view class="review-row">
+          <text class="review-label">你的答案</text>
+          <text class="review-value review-user-{{reviewVerdict}}">{{reviewUserText}}</text>
+        </view>
+        <view class="review-row">
+          <text class="review-label">正确答案</text>
+          <text class="review-value review-answer-correct">{{reviewCorrectAnswer}}</text>
+        </view>
+        <view class="review-note">{{reviewVerdict === 'correct' ? '回答正确' : (reviewVerdict === 'blank' ? '这题没有作答' : '这题答错了，看看正确答案')}}</view>
+      </view>
+
+      <block wx:if="{{!reviewMode}}">
+        <view wx:if="{{fractionMode}}" class="quiz-fraction">
+          <view class="fraction-inputs">
+            <input
+              class="fraction-input"
+              type="number"
+              maxlength="2"
+              value="{{fractionNumerator}}"
+              placeholder="分子"
+              placeholder-class="fraction-placeholder"
+              focus="{{inputFocus && !finished}}"
+              disabled="{{finished}}"
+              data-part="numerator"
+              bindinput="onFractionInput"
+            />
+            <view class="fraction-bar"></view>
+            <input
+              class="fraction-input"
+              type="number"
+              maxlength="2"
+              value="{{fractionDenominator}}"
+              placeholder="分母"
+              placeholder-class="fraction-placeholder"
+              disabled="{{finished}}"
+              data-part="denominator"
+              bindinput="onFractionInput"
+            />
+          </view>
+        </view>
+        <view wx:else class="quiz-answer">
+          <input
+            class="quiz-input"
+            type="{{inputType}}"
+            maxlength="{{inputMaxLength}}"
+            value="{{currentValue}}"
+            placeholder="?"
+            placeholder-class="quiz-placeholder"
+            focus="{{inputFocus && !finished}}"
+            disabled="{{finished}}"
+            data-index="{{currentIndex}}"
+            bindinput="onAnswerInput"
+            confirm-type="next"
+            bindconfirm="nextQuestion"
+          />
+        </view>
+      </block>
+
+      <view class="quiz-tip">{{reviewMode ? '点击下方题号可以回看任意一题' : (fractionMode ? '分子、分母都要填；整数 0 写成 0/1，1 写成 1/1' : '输入答案后点“下一题”，可随时返回修改')}}</view>
+    </view>
+
+    <view class="quiz-actions">
+      <button class="choice quiz-nav" bindtap="prevQuestion" disabled="{{currentIndex === 0}}">上一题</button>
+      <button class="choice quiz-nav" bindtap="nextQuestion" disabled="{{currentIndex + 1 >= total}}">下一题</button>
+    </view>
+
+    <view class="quiz-footer">
+      <view class="quiz-count">已填 {{answeredCount}} / {{total}}</view>
+      <button class="primary" bindtap="onSubmitTap" loading="{{submitting}}" disabled="{{submitting || finished}}">{{finished ? '已交卷' : '交卷并批改'}}</button>
+    </view>
+
+    <view class="nav-card">
+      <view class="nav-head">
+        <text class="nav-title">题目导航</text>
+        <text class="nav-sub">{{reviewMode ? '点击题号回看' : '点击题号跳转'}}</text>
+      </view>
+      <view class="nav-grid">
+        <view
+          wx:for="{{navCells}}"
+          wx:key="no"
+          class="nav-cell nav-{{item.state}} {{index === currentIndex ? 'nav-current' : ''}}"
+          data-index="{{index}}"
+          bindtap="jumpTo"
+        >{{item.no}}</view>
+      </view>
+      <view class="nav-legend">
+        <block wx:if="{{reviewMode}}">
+          <view class="legend-item"><view class="legend-dot dot-correct"></view>正确</view>
+          <view class="legend-item"><view class="legend-dot dot-wrong"></view>错误</view>
+          <view class="legend-item"><view class="legend-dot dot-blank"></view>未答</view>
+        </block>
+        <block wx:else>
+          <view class="legend-item"><view class="legend-dot dot-unanswered"></view>未答</view>
+          <view class="legend-item"><view class="legend-dot dot-answered"></view>已答</view>
+          <view class="legend-item"><view class="legend-dot dot-current"></view>当前</view>
+        </block>
+      </view>
+    </view>
+  </block>
 </view>
