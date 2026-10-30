@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "ruleVersion": "2026-10-27.1",
+  "durations": [
+    60,
+    120,
+    180
+  ],
+  "rules": [
+    {
+      "id": "g1_add_20",
+      "grade": 1,
+      "operation": "add",
+      "limit": 20
+    },
+    {
+      "id": "g1_subtract_20",
+      "grade": 1,
+      "operation": "subtract",
+      "limit": 20
+    },
+    {
+      "id": "g2_add_100",
+      "grade": 2,
+      "operation": "add",
+      "limit": 100
+    },
+    {
+      "id": "g2_subtract_100",
+      "grade": 2,
+      "operation": "subtract",
+      "limit": 100
+    },
+    {
+      "id": "g2_multiply_table",
+      "grade": 2,
+      "operation": "multiply",
+      "limit": 81
+    },
+    {
+      "id": "g2_divide_table",
+      "grade": 2,
+      "operation": "divide",
+      "limit": 81
+    },
+    {
+      "id": "g3_add_1000",
+      "grade": 3,
+      "operation": "add",
+      "limit": 1000
+    },
+    {
+      "id": "g3_subtract_1000",
+      "grade": 3,
+      "operation": "subtract",
+      "limit": 1000
+    },
+    {
+      "id": "g3_multiply_2by1",
+      "grade": 3,
+      "operation": "multiply",
+      "limit": 891
+    },
+    {
+      "id": "g3_divide_2by1",
+      "grade": 3,
+      "operation": "divide",
+      "limit": 99
+    },
+    {
+      "id": "g3_mixed_2step",
+      "grade": 3,
+      "operation": "mixed",
+      "limit": 100
+    },
+    {
+      "id": "g3_decimal_1place",
+      "grade": 3,
+      "operation": "decimal_add_sub",
+      "limit": 10
+    },
+    {
+      "id": "g3_fraction_same_den",
+      "grade": 3,
+      "operation": "fraction_add_sub",
+      "limit": 1
+    }
+  ]
+}

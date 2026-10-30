@@ -1,0 +1,48 @@
+<view class="page">
+  <view wx:if="{{!allowed}}" class="card">
+    <view class="card-title">开发联调入口</view>
+    <view class="note">此页面仅用于开发版和体验版验证。</view>
+  </view>
+  <block wx:else>
+    <view class="title">共同后端验证</view>
+    <view class="note intro">仅验证真实身份、共享房间和权限。不会生成题目、开赛或判分；调用失败不会切换为模拟成功。</view>
+    <view class="card">
+      <view class="label">共同测试环境 ID</view>
+      <input class="number-input" value="{{envId}}" bindinput="inputEnv" disabled="{{busy}}" maxlength="101" placeholder="填写云开发环境 ID，不是 AppID" />
+      <button class="primary" bindtap="identify" disabled="{{busy}}" loading="{{busy}}">连接并识别当前账号</button>
+      <view wx:if="{{identity}}" class="details">
+        <view>账号标识（两台手机应不同）</view><text selectable="true" class="identifier">{{identity.userId}}</text>
+        <view>环境：{{identity.environmentId || '云端未返回环境标识，请核对部署'}}</view>
+      </view>
+    </view>
+    <view class="card">
+      <view class="card-title">创建或加入</view>
+      <view class="note">固定测试配置：一年级加法 · 10 题 · 60 秒。当前只保存配置，不开始答题。</view>
+      <button class="primary" bindtap="createTestRoom" disabled="{{busy || !!pendingAction}}">创建测试房间</button>
+      <input class="number-input code-field" value="{{code}}" bindinput="inputCode" disabled="{{busy}}" type="number" maxlength="6" placeholder="另一账号输入 6 位房间码" />
+      <button class="secondary" bindtap="joinRoom" disabled="{{busy || !!pendingAction}}">加入测试房间</button>
+    </view>
+    <view class="card">
+      <view class="card-title">读取已有房间</view>
+      <input class="number-input" value="{{lookupRoomId}}" bindinput="inputRoomId" disabled="{{busy}}" maxlength="42" placeholder="完整房间编号，用于恢复／权限检查" />
+      <button class="secondary" bindtap="refreshRoom" disabled="{{busy}}">刷新房间状态</button>
+      <view wx:if="{{room}}" class="details">
+        <view>房间码：<text selectable="true">{{room.code}}</text></view>
+        <view>房间编号：<text selectable="true" class="identifier">{{room.roomId}}</text></view>
+        <view>阶段：{{room.status}} · 版本：{{room.version}}</view>
+        <view>成员：{{room.members.length}} / 2</view>
+        <view wx:for="{{room.members}}" wx:key="role">{{item.isSelf ? '我' : '伙伴'}} · {{item.role === 'host' ? '房主' : '加入者'}} · {{item.ready ? '已准备' : '未准备'}}</view>
+        <button class="secondary" bindtap="toggleReady" disabled="{{busy || !!pendingAction || room.status !== 'waiting' || room.members.length !== 2}}">{{selfReady ? '取消准备' : '我准备好了'}}</button>
+        <button class="secondary" bindtap="leaveRoom" disabled="{{busy || !!pendingAction || room.status !== 'waiting'}}">退出测试房间</button>
+      </view>
+    </view>
+    <view wx:if="{{pendingAction}}" class="card">
+      <view class="card-title">有未确认操作：{{pendingAction}}</view>
+      <view class="note">保留了原请求编号。请重试该操作，避免重复创建或加入。</view>
+      <button class="primary" bindtap="retryOperation" disabled="{{busy}}">重试未确认操作</button>
+    </view>
+    <view wx:if="{{error}}" class="error" selectable="true">{{error}}</view>
+    <view wx:if="{{message}}" class="note">{{message}}</view>
+    <view wx:if="{{serverTime}}" class="note">上次云端时间：{{serverTime}}</view>
+  </block>
+</view>
