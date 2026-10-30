@@ -1,29 +1,30 @@
 /**
- * 整数加减法出题器（纯函数，不依赖 wx / 云开发，可在小程序端与云函数端复用）。
+ * 整数四则出题器（纯函数，不依赖 wx / 云开发，可在小程序端与云函数端复用）。
  *
- * P3 范围：按 ruleId 出「整数加减法」，覆盖设置目录里的 6 个预设：
- *   g1_add_20 / g1_subtract_20（20 以内）
- *   g2_add_100 / g2_subtract_100（100 以内）
- *   g3_add_1000 / g3_subtract_1000（1000 以内）
- * 乘法、除法、混合运算、小数、分数由 P4 接入，调用前由 session-core 拦截。
+ * P3 + P4 整数部分：按 ruleId 出题，策略表见 rule-strategies.js。
+ * 已覆盖 10 个预设：20/100/1000 以内加减法、表内乘除、两位数×一位数、两位数÷一位数。
+ * 混合运算、小数、分数仍未接入，由 session-core 拦截并返回 UNSUPPORTED_RULE。
  *
  * 规则：
  * 1. 加法：两个非负整数，和不超过 limit；
  * 2. 减法：两个数 0—limit，差不能为负数；
- * 3. 一次练习内同一个算式不重复；
- * 4. 每题有唯一题号、算式文本、正确答案和 ruleId。
+ * 3. 表内乘法：两个乘数 1—9，交换乘数算重复（45 种）；
+ * 4. 表内除法：除数、商 1—9，被除数 = 除数 × 商；
+ * 5. 两位数乘一位数、两位数除一位数（整除）；
+ * 6. 同一次练习不重复；每题有唯一题号、算式、正确答案和 ruleId。
  *
- * 生成是「确定性」的：同样的 (ruleId, sessionId, count) 永远得到同样的一套题。
+ * 生成是确定性的：同样的 (ruleId, sessionId, count) 得到同一套题。
  */
-const ENGINE_VERSION = '1.1.0';
-const MAX_COUNT = 50;
-const MAX_LIMIT = 1000;
-const OPERATIONS = ['add', 'subtract'];
+const { getStrategy } = require('./rule-strategies');
 
-// 题库规模不超过这个值时全量洗牌取子集（覆盖均匀）；更大时改用拒绝采样
+const ENGINE_VERSION = '1.2.0';
+const MAX_COUNT = 50;
+const OPERATIONS = ['add', 'subtract', 'multiply', 'divide'];
+
+// 题库不超过这个值时全量洗牌取子集；更大时改用拒绝采样
 const SHUFFLE_LIMIT = 20000;
 
-const OP_CHAR = { add: '+', subtract: '-' };
+const OP_CHAR = { add: '+', subtract: '-', multiply: '×', divide: '÷' };
 
 /** 32 位 FNV-1a，把字符串变成稳定的非负整数种子。 */
 function hashSeed(input) {
@@ -65,6 +66,8 @@ function canonicalOperation(input) {
   const text = String(input === undefined || input === null ? '' : input).trim().toLowerCase();
   if (text === 'add' || text === 'addition' || text === '+' || text === '加' || text === '加法') return 'add';
   if (text === 'subtract' || text === 'sub' || text === '-' || text === '减' || text === '减法') return 'subtract';
+  if (text === 'multiply' || text === 'mul' || text === '*' || text === '×' || text === '乘' || text === '乘法') return 'multiply';
+  if (text === 'divide' || text === 'div' || text === '/' || text === '÷' || text === '除' || text === '除法') return 'divide';
   return '';
 }
 
@@ -74,36 +77,58 @@ function normalizeCount(input) {
   return value;
 }
 
-function normalizeLimit(input) {
-  const value = Number(input);
-  if (!Number.isInteger(value) || value < 2 || value > MAX_LIMIT) return 0;
-  return value;
-}
-
 function normalizeSeed(input) {
   if (input === undefined || input === null || input === '') return null;
   return String(input).slice(0, 200);
 }
 
-/** 该题型在给定上限下的算式总数：加法与减法数量相同，都是 (limit+1)(limit+2)/2。 */
-function poolSize(limit) {
-  return ((limit + 1) * (limit + 2)) / 2;
+/** 加法 / 减法的算式总数：加法与减法数量相同，都是 (limit+1)(limit+2)/2。 */
+function addSubtractPoolSize(strategy) {
+  return ((strategy.limit + 1) * (strategy.limit + 2)) / 2;
 }
 
-/**
- * 列出某题型下全部合法算式（仅用于规模不大的题库）。
- * 加法：a + b <= limit；减法：0 <= b <= a <= limit。
- */
-function buildPairs(operation, limit) {
+/** 列出某题型下全部合法算式（只用于规模不大的题库）。 */
+function buildPool(strategy) {
   const pairs = [];
+  const operation = strategy.operation;
   if (operation === 'add') {
-    for (let a = 0; a <= limit; a += 1) {
-      for (let b = 0; b <= limit - a; b += 1) pairs.push({ a: a, b: b });
+    for (let a = 0; a <= strategy.limit; a += 1) {
+      for (let b = 0; b <= strategy.limit - a; b += 1) pairs.push({ a: a, b: b });
     }
     return pairs;
   }
-  for (let a = 0; a <= limit; a += 1) {
-    for (let b = 0; b <= a; b += 1) pairs.push({ a: a, b: b });
+  if (operation === 'subtract') {
+    for (let a = 0; a <= strategy.limit; a += 1) {
+      for (let b = 0; b <= a; b += 1) pairs.push({ a: a, b: b });
+    }
+    return pairs;
+  }
+  if (operation === 'multiply') {
+    for (let a = strategy.aMin; a <= strategy.aMax; a += 1) {
+      for (let b = strategy.bMin; b <= strategy.bMax; b += 1) {
+        // 交换乘数算重复：只保留 a <= b 的一种
+        if (strategy.commutative && a > b) continue;
+        pairs.push({ a: a, b: b });
+      }
+    }
+    return pairs;
+  }
+  if (operation === 'divide') {
+    for (let divisor = strategy.divisorMin; divisor <= strategy.divisorMax; divisor += 1) {
+      if (strategy.quotientMin !== undefined) {
+        // 表内除法：被除数 = 除数 × 商，商 1—9
+        for (let quotient = strategy.quotientMin; quotient <= strategy.quotientMax; quotient += 1) {
+          pairs.push({ a: divisor * quotient, b: divisor });
+        }
+      } else {
+        // 两位数 ÷ 一位数：被除数在范围内且能整除
+        for (let dividend = strategy.dividendMin; dividend <= strategy.dividendMax; dividend += 1) {
+          if (dividend % divisor !== 0) continue;
+          pairs.push({ a: dividend, b: divisor });
+        }
+      }
+    }
+    return pairs;
   }
   return pairs;
 }
@@ -112,50 +137,10 @@ function pairKey(a, b) {
   return a + ':' + b;
 }
 
-/** 算式文本：题干用 "12 - 5 = ?"，答案回显用 "12 - 5 = 7"。 */
-function expressionText(operation, a, b, options) {
-  const withAnswer = Boolean(options && options.withAnswer);
-  const value = operation === 'subtract' ? a - b : a + b;
-  const right = withAnswer ? String(value) : '?';
-  return a + ' ' + OP_CHAR[operation] + ' ' + b + ' = ' + right;
-}
-
-/** 结果页回显用：拼出带正确答案的式子，例如 "12 − 5 = 7"。 */
-function buildEquation(question, answer) {
-  const operation = canonicalOperation(question && question.operation) || 'add';
-  const left = Number(question && question.left);
-  const right = Number(question && question.right);
-  if (!Number.isInteger(left) || !Number.isInteger(right)) {
-    return question && question.formula ? String(question.formula) : '';
-  }
-  return left + ' ' + OP_CHAR[operation] + ' ' + right + ' = ' + String(answer);
-}
-
-function makeSeed(ruleId, limit, sessionId) {
-  return hashSeed([ENGINE_VERSION, ruleId || 'legacy', limit, sessionId].join('|'));
-}
-
-function buildQuestion(ruleId, operation, limit, index, pair) {
-  const answer = operation === 'subtract' ? pair.a - pair.b : pair.a + pair.b;
-  return {
-    id: String(index + 1),
-    index: index + 1,
-    ruleId: ruleId || '',
-    operation: operation,
-    formula: String(pair.a) + OP_CHAR[operation] + String(pair.b),
-    text: expressionText(operation, pair.a, pair.b, { withAnswer: false }),
-    left: pair.a,
-    right: pair.b,
-    limit: limit,
-    answer: answer
-  };
-}
-
-/**
- * 从大题库里抽样（limit 很大时全量洗牌代价太高）。
- * 先均匀取 (a, b)，再用规则过滤，重复就用 Set 跳过。
- */
-function samplePairs(operation, limit, count, random) {
+/** 大题库抽样：加法/减法在 1000 以内时使用，避免建 50 万个对象。 */
+function sampleAddSubtract(strategy, count, random) {
+  const operation = strategy.operation;
+  const limit = strategy.limit;
   const seen = {};
   const picked = [];
   const guardMax = count * 2000 + 1000;
@@ -173,13 +158,58 @@ function samplePairs(operation, limit, count, random) {
   return picked;
 }
 
+/** 算式文本：题干用 "12 - 5 = ?"，答案回显用 "12 - 5 = 7"。 */
+function expressionText(operation, a, b, options) {
+  const withAnswer = Boolean(options && options.withAnswer);
+  const left = operation === 'subtract' ? a - b
+    : operation === 'multiply' ? a * b
+      : operation === 'divide' ? a / b
+        : a + b;
+  const right = withAnswer ? String(left) : '?';
+  return a + ' ' + OP_CHAR[operation] + ' ' + b + ' = ' + right;
+}
+
+/** 结果页回显用：拼出带正确答案的式子，例如 "12 − 5 = 7"。 */
+function buildEquation(question, answer) {
+  const operation = canonicalOperation(question && question.operation) || 'add';
+  const left = Number(question && question.left);
+  const right = Number(question && question.right);
+  if (!Number.isInteger(left) || !Number.isInteger(right)) {
+    return question && question.formula ? String(question.formula) : '';
+  }
+  return left + ' ' + OP_CHAR[operation] + ' ' + right + ' = ' + String(answer);
+}
+
+function answerOf(operation, a, b) {
+  if (operation === 'subtract') return a - b;
+  if (operation === 'multiply') return a * b;
+  if (operation === 'divide') return a / b;
+  return a + b;
+}
+
+function makeSeed(ruleId, sessionId) {
+  return hashSeed([ENGINE_VERSION, ruleId, sessionId].join('|'));
+}
+
+function buildQuestion(ruleId, operation, sessionId, index, pair) {
+  return {
+    id: sessionId + '-' + (index + 1),
+    index: index + 1,
+    ruleId: ruleId,
+    operation: operation,
+    formula: String(pair.a) + OP_CHAR[operation] + String(pair.b),
+    text: expressionText(operation, pair.a, pair.b, { withAnswer: false }),
+    left: pair.a,
+    right: pair.b,
+    answer: answerOf(operation, pair.a, pair.b)
+  };
+}
+
 /**
  * 生成一套题目。
  *
  * @param {object} input
- * @param {string} input.ruleId 题型编号，例如 g1_add_20；会写进每题
- * @param {string} input.operation 'add' | 'subtract'
- * @param {number} input.limit 数值上限，2—1000
+ * @param {string} input.ruleId 题型编号，例如 g2_multiply_table
  * @param {number} input.count 需要的题量（1—50）
  * @param {string} [input.sessionId] 练习会话号；不传时按配置自动生成
  * @param {string} [input.seed] 可选随机种子，会并入 sessionId
@@ -187,54 +217,56 @@ function samplePairs(operation, limit, count, random) {
  */
 function generateQuestions(input) {
   const source = input || {};
-  const operation = canonicalOperation(source.operation);
-  if (!operation) {
-    return { ok: false, code: 'INVALID_CONFIG', message: '请选择加法或减法' };
-  }
-  const limit = normalizeLimit(source.limit);
-  if (!limit) {
-    return { ok: false, code: 'INVALID_CONFIG', message: '题目范围必须是 2 到 1000 之间的整数' };
+  const ruleId = String(source.ruleId === undefined || source.ruleId === null ? '' : source.ruleId);
+  const strategy = getStrategy(ruleId);
+  if (!strategy) {
+    return { ok: false, code: 'UNSUPPORTED_RULE', message: '该题型尚未开放' };
   }
   const count = normalizeCount(source.count);
   if (count === 0 || count > MAX_COUNT) {
     return { ok: false, code: 'INVALID_CONFIG', message: '题量必须是 1 到 ' + MAX_COUNT + ' 之间的整数' };
   }
-  const total = poolSize(limit);
-  if (count > total) {
-    return {
-      ok: false,
-      code: 'POOL_EXHAUSTED',
-      message: '该范围内只有 ' + total + ' 种算式，请把题量调小'
-    };
+
+  const smallAddSubtract = (strategy.operation === 'add' || strategy.operation === 'subtract') &&
+    addSubtractPoolSize(strategy) > SHUFFLE_LIMIT;
+  let pool = null;
+  if (!smallAddSubtract) {
+    pool = buildPool(strategy);
+    if (count > pool.length) {
+      return {
+        ok: false,
+        code: 'POOL_EXHAUSTED',
+        message: '该范围内只有 ' + pool.length + ' 种算式，请把题量调小'
+      };
+    }
+  } else if (count > addSubtractPoolSize(strategy)) {
+    return { ok: false, code: 'POOL_EXHAUSTED', message: '该范围内算式不足，请把题量调小' };
   }
 
   const seedText = normalizeSeed(source.seed);
   const sessionId = normalizeSeed(source.sessionId) ||
-    'local-' + hashSeed([source.ruleId || '', operation, limit, count, seedText || 'seed'].join('|')).toString(36);
+    'local-' + hashSeed([ruleId, count, seedText || 'seed'].join('|')).toString(36);
   const finalSessionId = seedText ? sessionId + '-' + hashSeed(seedText).toString(36) : sessionId;
 
-  const random = createRandom(makeSeed(source.ruleId, limit, finalSessionId));
+  const random = createRandom(makeSeed(ruleId, finalSessionId));
   let pairs;
-  if (total <= SHUFFLE_LIMIT) {
-    pairs = shuffle(buildPairs(operation, limit), random).slice(0, count);
+  if (smallAddSubtract) {
+    pairs = sampleAddSubtract(strategy, count, random);
   } else {
-    pairs = samplePairs(operation, limit, count, random);
+    pairs = shuffle(pool, random).slice(0, count);
   }
   if (pairs.length < count) {
     return { ok: false, code: 'GENERATION_FAILED', message: '出题失败，请重试' };
   }
 
   const questions = pairs.map(function (pair, index) {
-    const question = buildQuestion(source.ruleId, operation, limit, index, pair);
-    question.sessionId = finalSessionId;
-    question.id = finalSessionId + '-' + (index + 1);
-    return question;
+    return buildQuestion(ruleId, strategy.operation, finalSessionId, index, pair);
   });
 
   return {
     ok: true,
     questions: questions,
-    seed: makeSeed(source.ruleId, limit, finalSessionId),
+    seed: makeSeed(ruleId, finalSessionId),
     sessionId: finalSessionId,
     engineVersion: ENGINE_VERSION
   };
@@ -249,9 +281,13 @@ function validateQuestionSpec(question) {
   const right = Number(question.right);
   if (!Number.isInteger(left) || !Number.isInteger(right)) return false;
   if (left < 0 || right < 0) return false;
-  if (!Number.isInteger(Number(question.answer))) return false;
-  const expected = operation === 'subtract' ? left - right : left + right;
-  return Number(question.answer) === expected;
+  const answer = Number(question.answer);
+  if (!Number.isInteger(answer)) return false;
+  if (operation === 'add') return answer === left + right;
+  if (operation === 'subtract') return answer === left - right;
+  if (operation === 'multiply') return answer === left * right;
+  if (operation === 'divide') return right !== 0 && left % right === 0 && answer === left / right;
+  return false;
 }
 
 /** 供云函数使用的「脱敏」题目：去掉 answer。 */
@@ -271,7 +307,6 @@ function toPublicQuestion(question) {
 module.exports = {
   ENGINE_VERSION,
   MAX_COUNT,
-  MAX_LIMIT,
   OPERATIONS,
   SHUFFLE_LIMIT,
   hashSeed,
@@ -279,8 +314,8 @@ module.exports = {
   canonicalOperation,
   expressionText,
   buildEquation,
-  poolSize,
-  buildPairs,
+  addSubtractPoolSize,
+  buildPool,
   generateQuestions,
   validateQuestionSpec,
   toPublicQuestion

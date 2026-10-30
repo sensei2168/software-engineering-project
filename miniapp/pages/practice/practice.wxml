@@ -15,7 +15,7 @@
       <view class="card-title">{{unavailable.title}}</view>
       <view class="summary-line" wx:if="{{display}}">本次选择：{{display.gradeLabel}} · {{display.ruleLabel}} · {{display.rangeLabel}}</view>
       <view class="note">{{unavailable.message}}</view>
-      <view class="note">目前可以完整练习的是整数加减法：一年级 20 以内、二年级 100 以内、三年级 1000 以内。乘法、除法、混合运算、小数和分数会在下一阶段接入。</view>
+      <view class="note">目前可以完整练习的是整数四则：加减法（20／100／1000 以内）、表内乘除、两位数乘一位数和两位数除以一位数。混合运算、小数和分数会在下一阶段接入。</view>
     </view>
     <button class="primary" bindtap="backToSettings">返回练习设置</button>
   </block>

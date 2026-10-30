@@ -4,11 +4,12 @@
  * 小程序端和云函数端都调用 handleRequest，保证两边的校验规则、返回结构完全一致：
  * 本地兜底跑出来的结果，和云函数上线后跑出来的结果可以直接对比。
  *
- * P3 只开放整数加减法（6 个预设）：g1_add_20、g1_subtract_20、g2_add_100、
- * g2_subtract_100、g3_add_1000、g3_subtract_1000。其余 7 个预设明确返回
- * UNSUPPORTED_RULE，不会静默降级成加法。
+ * 已开放 10 个整数预设：20/100/1000 以内加减法、表内乘除、两位数×一位数、
+ * 两位数÷一位数。混合运算、小数、分数明确返回 UNSUPPORTED_RULE，
+ * 不会静默降级成别的题型。
  */
 const { getRule, getGradeLabel } = require('../practice-rules');
+const { getStrategy } = require('./rule-strategies');
 const { hashSeed, generateQuestions, validateQuestionSpec, toPublicQuestion } = require('./generator');
 const { gradeAnswers } = require('./scoring');
 
@@ -17,8 +18,6 @@ const MIN_COUNT = 10;
 const MAX_TEXT = 200;
 const VALID_MODES = ['normal', 'timed'];
 const VALID_DURATIONS = [60, 120, 180];
-// P3 已实现的运算类型；P4 接入乘除、混合、小数、分数时在这里扩展
-const SUPPORTED_OPERATIONS = ['add', 'subtract'];
 
 function fail(code, message, details) {
   return { ok: false, code: code, message: message, details: details || null };
@@ -97,11 +96,12 @@ function createQuestionSet(payload, options) {
   if (!sanitized.ok) return fail(sanitized.code, sanitized.message);
   const config = sanitized.value;
   const rule = getRule(config.ruleId);
+  const strategy = getStrategy(rule.id);
 
-  if (SUPPORTED_OPERATIONS.indexOf(rule.operation) === -1) {
+  if (!strategy) {
     return fail(
       'UNSUPPORTED_RULE',
-      '「' + getGradeLabel(rule.grade) + ' · ' + rule.label + '」尚未开放，请先选择整数加减法。'
+      '「' + getGradeLabel(rule.grade) + ' · ' + rule.label + '」尚未开放，请先选择整数四则运算。'
     );
   }
 
@@ -111,8 +111,6 @@ function createQuestionSet(payload, options) {
 
   const generated = generateQuestions({
     ruleId: rule.id,
-    operation: rule.operation,
-    limit: rule.limit,
     count: config.count,
     sessionId: sessionId,
     seed: seed
@@ -204,7 +202,6 @@ function handleRequest(request) {
 module.exports = {
   MAX_COUNT,
   MIN_COUNT,
-  SUPPORTED_OPERATIONS,
   sanitizeConfig,
   ruleVersionOf,
   createQuestionSet,
