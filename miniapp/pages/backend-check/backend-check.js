@@ -1,17 +1,18 @@
 const { createRoomClient } = require('../../utils/room-client');
+const { envId: DEFAULT_ENV_ID } = require('../../config/cloud');
 const ENV_KEY = 'room-p2.environment';
 const LAST_ROOM = 'room-p2.last-room.';
 
 // 这是开发联调入口，不连接模拟后端，也不放到家长／学生首页。
 Page({
-  data: { allowed: false, envId: '', code: '', lookupRoomId: '', identity: null, room: null,
+  data: { allowed: false, envId: DEFAULT_ENV_ID, code: '', lookupRoomId: '', identity: null, room: null,
     busy: false, error: '', message: '', pendingAction: '', serverTime: '', selfReady: false },
   onLoad() {
     const info = wx.getAccountInfoSync();
     const allowed = ['develop', 'trial'].includes(info.miniProgram && info.miniProgram.envVersion);
     this.setData({ allowed });
     if (!allowed) return;
-    try { this.setData({ envId: wx.getStorageSync(ENV_KEY) || '' }); }
+    try { this.setData({ envId: wx.getStorageSync(ENV_KEY) || DEFAULT_ENV_ID }); }
     catch (_) { this.setData({ error: '无法读取本机设置，请检查存储空间' }); }
   },
   inputEnv(event) { this.setData({ envId: event.detail.value.trim(), identity: null, room: null, pendingAction: '' }); this.client = null; },
