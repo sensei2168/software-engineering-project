@@ -1,0 +1,165 @@
+/* 结果页专用样式。配色沿用 app.wxss：主色 #087f79，底色 #fffcf3。 */
+
+.meta-line {
+  color: #657773;
+  font-size: 25rpx;
+  line-height: 1.6;
+  margin-bottom: 8rpx;
+}
+
+.dev-hint {
+  color: #795526;
+  font-size: 23rpx;
+  line-height: 1.6;
+  margin-top: 14rpx;
+}
+
+/* 汇总数字 */
+.stat-grid {
+  display: flex;
+}
+
+.stat-cell {
+  flex: 1;
+  text-align: center;
+  padding: 6rpx 0;
+}
+
+.stat-num {
+  font-size: 46rpx;
+  font-weight: 700;
+  color: #183f40;
+}
+
+.stat-lab {
+  font-size: 23rpx;
+  color: #657773;
+  margin-top: 6rpx;
+}
+
+.stat-cell.ok .stat-num { color: #1a7f5a; }
+.stat-cell.bad .stat-num { color: #a43426; }
+.stat-cell.blank .stat-num { color: #b06a12; }
+
+/* 逐题 */
+.row {
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid #eef3f1;
+}
+
+.row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.row-head {
+  display: flex;
+  align-items: center;
+}
+
+.idx {
+  width: 44rpx;
+  height: 44rpx;
+  line-height: 44rpx;
+  text-align: center;
+  border-radius: 22rpx;
+  background: #eef7f4;
+  color: #216b67;
+  font-size: 24rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.expr {
+  flex: 1;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #183f40;
+  word-break: break-all;
+}
+
+.tag {
+  font-size: 23rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 10rpx;
+  flex-shrink: 0;
+}
+
+.tag.correct {
+  background: #e8f6ef;
+  color: #1a7f5a;
+}
+
+.tag.wrong {
+  background: #fbeceb;
+  color: #a43426;
+}
+
+.tag.unanswered {
+  background: #fff1d7;
+  color: #795526;
+}
+
+.row-body {
+  display: flex;
+  margin-top: 14rpx;
+  padding-left: 60rpx;
+}
+
+.ans {
+  flex: 1;
+}
+
+.ans-label {
+  font-size: 22rpx;
+  color: #879a96;
+}
+
+.ans-value {
+  font-size: 30rpx;
+  color: #33524f;
+  margin-top: 4rpx;
+  word-break: break-all;
+}
+
+.ans-value.right {
+  color: #1a7f5a;
+  font-weight: 600;
+}
+
+.ans-value.is-blank {
+  color: #b06a12;
+}
+
+/* 保存状态 */
+.save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f1f5f3;
+  border-radius: 18rpx;
+  padding: 18rpx 24rpx;
+  margin-top: 8rpx;
+  margin-bottom: 24rpx;
+}
+
+.save-text {
+  font-size: 24rpx;
+  color: #5c7571;
+  flex: 1;
+}
+
+.save-action {
+  color: #087f79;
+  font-size: 24rpx;
+  padding-left: 16rpx;
+}
+
+.save-bar.saved .save-text { color: #1a7f5a; }
+.save-bar.deduped .save-text { color: #216b67; }
+
+.save-bar.failed {
+  background: #fbeceb;
+}
+
+.save-bar.failed .save-text { color: #a43426; }
