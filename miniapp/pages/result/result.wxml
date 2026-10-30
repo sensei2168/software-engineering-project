@@ -1,9 +1,88 @@
 <view class="page">
-  <view class="status">即将开放</view>
-  <view class="title">每一步进步都值得记录</view>
-  <view class="card">
-    <view class="card-title">练习结果</view>
-    <view class="note">结果功能正在准备中。开放后，你可以查看答题情况、回顾错题，再试一次。</view>
-  </view>
-  <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
+
+  <!-- 没有可显示的结果 -->
+  <block wx:if="{{mode === 'empty'}}">
+    <view class="status">尚未接入真实练习结果</view>
+    <view class="title">练习结果</view>
+
+    <view class="card" wx:if="{{error}}">
+      <view class="card-title">无法显示结果</view>
+      <view class="error">{{error}}</view>
+    </view>
+
+    <view class="card">
+      <view class="card-title">还没有可显示的结果</view>
+      <view class="note">完成一次练习并提交后，这里会显示总题数、正确、错误、未答和正确率，以及每道题的作答情况。目前答题与批改功能尚未接入。</view>
+      <button wx:if="{{devAllowed}}" class="secondary" bindtap="onUseDevData">用开发测试数据查看页面效果</button>
+      <view wx:if="{{devAllowed}}" class="dev-hint">开发测试数据只用于验证页面，不代表真实练习结果。</view>
+    </view>
+
+    <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
+  </block>
+
+  <block wx:else>
+    <view wx:if="{{isDev}}" class="status">开发测试数据 · 未接入批改</view>
+    <view wx:else class="status">练习结果</view>
+
+    <view class="title">{{summary.accuracyText}}</view>
+    <view class="subtitle">正确率</view>
+    <view class="meta-line" wx:if="{{configText}}">{{configText}}</view>
+    <view class="meta-line" wx:if="{{mode === 'detail' && metaText}}">{{metaText}}</view>
+
+    <!-- 汇总数字 -->
+    <view class="card">
+      <view class="stat-grid">
+        <view class="stat-cell">
+          <view class="stat-num">{{summary.total}}</view>
+          <view class="stat-lab">总题数</view>
+        </view>
+        <view class="stat-cell ok">
+          <view class="stat-num">{{summary.correct}}</view>
+          <view class="stat-lab">正确</view>
+        </view>
+        <view class="stat-cell bad">
+          <view class="stat-num">{{summary.wrong}}</view>
+          <view class="stat-lab">错误</view>
+        </view>
+        <view class="stat-cell blank">
+          <view class="stat-num">{{summary.unanswered}}</view>
+          <view class="stat-lab">未答</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 逐题结果 -->
+    <view class="card">
+      <view class="card-title">逐题情况</view>
+      <view class="row" wx:for="{{rows}}" wx:key="index">
+        <view class="row-head">
+          <view class="idx">{{item.index}}</view>
+          <view class="expr">{{item.expression}}</view>
+          <view class="tag {{item.status}}">{{item.statusText}}</view>
+        </view>
+        <view class="row-body">
+          <view class="ans">
+            <view class="ans-label">你的答案</view>
+            <view class="ans-value {{item.isBlank ? 'is-blank' : ''}}">{{item.userAnswerText}}</view>
+          </view>
+          <view class="ans">
+            <view class="ans-label">正确答案</view>
+            <view class="ans-value right">{{item.correctAnswerText}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 保存状态 -->
+    <view class="save-bar {{savedState}}">
+      <view class="save-text">{{savedText}}</view>
+      <view wx:if="{{savedState === 'failed'}}" class="save-action" bindtap="onSaveTap">重试保存</view>
+      <view wx:elif="{{mode === 'preview' && (savedState === 'saved' || savedState === 'deduped')}}" class="save-action" bindtap="onSaveTap">再次保存</view>
+    </view>
+
+    <button class="primary" bindtap="onAgain">再次练习</button>
+    <button class="secondary" bindtap="onHistory">查看练习记录</button>
+    <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
+  </block>
+
 </view>

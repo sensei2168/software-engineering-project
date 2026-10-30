@@ -1,9 +1,60 @@
 <view class="page">
-  <view class="status">即将开放</view>
-  <view class="title">留下练习的足迹</view>
-  <view class="card">
-    <view class="card-title">练习记录</view>
-    <view class="note">记录功能正在准备中。开放后，你可以在这里回顾已完成的练习。</view>
+
+  <view wx:if="{{error}}" class="status">读取记录失败</view>
+  <block wx:else>
+    <view class="status">已保存 {{count}} 条</view>
+  </block>
+  <view class="title">练习记录</view>
+
+  <view class="card" wx:if="{{error}}">
+    <view class="card-title">读取本地记录失败</view>
+    <view class="error">{{error}}</view>
+    <view class="note">请关闭小程序后重新打开再试；若仍失败，记录可能已被系统清理。</view>
   </view>
+
+  <!-- 无记录 -->
+  <view class="card" wx:elif="{{empty}}">
+    <view class="card-title">还没有练习记录</view>
+    <view class="note">完成一次练习并提交后，结果会自动保存到本机，可以在这里回顾。</view>
+    <button wx:if="{{devAllowed}}" class="secondary" bindtap="onViewDevResult">用开发测试数据查看结果页</button>
+    <view wx:if="{{devAllowed}}" class="dev-hint">测试记录会标注「开发测试」，不代表真实练习成绩。</view>
+  </view>
+
+  <!-- 记录列表 -->
+  <block wx:else>
+    <view
+      class="card record"
+      wx:for="{{records}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onOpen"
+    >
+      <view class="rec-top">
+        <view class="rec-time">{{item.createdAtText}}</view>
+        <view wx:if="{{item.isDevData}}" class="rec-dev">开发测试</view>
+      </view>
+      <view class="rec-stats">
+        <view class="rec-stat">
+          <view class="rec-num">{{item.total}}</view>
+          <view class="rec-lab">题</view>
+        </view>
+        <view class="rec-stat">
+          <view class="rec-num ok">{{item.correct}}</view>
+          <view class="rec-lab">正确</view>
+        </view>
+        <view class="rec-stat">
+          <view class="rec-num acc">{{item.accuracyText}}</view>
+          <view class="rec-lab">正确率</view>
+        </view>
+        <view class="rec-mode">{{item.modeText}}</view>
+        <view class="rec-arrow">›</view>
+      </view>
+    </view>
+
+    <button class="secondary" bindtap="onClear">清除全部记录</button>
+  </block>
+
+  <view class="foot-note">记录保存在本机，清理微信数据或更换设备后可能无法恢复。</view>
   <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
+
 </view>
