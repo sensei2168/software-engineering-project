@@ -9,7 +9,9 @@
  *    不会静默降级成别的题型。
  * 4. 逐题作答，答案存在 answers 数组里，空字符串表示未答。
  * 5. 提交时把「题目 + 作答」交给同一套判分逻辑，拿到 result。
- * 6. 把 result 交给结果页（eventChannel + pendingPracticeResult）。
+ * 6. 交卷后留在本页进入只读回顾：题号方块按对/错/未答分色，点击回看你的答案与正确答案；
+ *    结果仍通过 eventChannel + pendingPracticeResult 交给结果页。
+ * 7. 底部「题目导航」在作答和回顾阶段都能点击跳转。
  *
  * 限时模式：第一题出现时开始计时，时间到自动收卷；提交后立即停表。
  * submitting / submitted 标记保证「手动提交」和「到时自动提交」只会产生一份结果。
@@ -37,6 +39,13 @@ function later(fn, ms) {
   if (typeof setTimeout === 'function') setTimeout(fn, ms);
 }
 
+/** 从 "1/4 + 1/4 = 2/4" 里取出 "2/4"，用于回顾时只显示答案。 */
+function answerPartOf(correctText) {
+  const text = String(correctText || '');
+  const index = text.lastIndexOf('= ');
+  return index === -1 ? text : text.slice(index + 2);
+}
+
 Page({
   data: {
     loading: true,
@@ -62,6 +71,12 @@ Page({
     inputFocus: false,
     submitting: false,
     finished: false,
+    navCells: [],
+    reviewMode: false,
+    summary: null,
+    reviewUserText: '',
+    reviewCorrectAnswer: '',
+    reviewVerdict: '',
     mode: 'normal',
     timed: false,
     remainingText: '',
@@ -76,6 +91,7 @@ Page({
     this.submitted = false;
     this.tickTimer = null;
     this.pageActive = true;
+    this.result = null;
 
     const parsed = fromQuery(options);
     if (!parsed.ok) {
@@ -146,8 +162,17 @@ Page({
         total: data.questions.length,
         answeredCount: 0,
         finished: false,
-        submitting: false
+        submitting: false,
+        navCells: data.questions.map(function (question, index) {
+          return { no: index + 1, state: 'unanswered' };
+        }),
+        reviewMode: false,
+        summary: null,
+        reviewUserText: '',
+        reviewCorrectAnswer: '',
+        reviewVerdict: ''
       });
+      this.result = null;
       this.applyQuestion(0);
       this.beginQuiz();
       console.log('[practice] 出题来源：' + response.source + '，ruleId：' + data.questions[0].ruleId + '，共 ' + data.questions.length + ' 题');
@@ -212,7 +237,9 @@ Page({
       cleaned = raw.replace(/[^0-9]/g, '').slice(0, 4);
     }
     this.answers[index] = cleaned;
-    this.setData({ currentValue: cleaned, answers: this.answers, answeredCount: this.countAnswered() });
+    const patch = { currentValue: cleaned, answers: this.answers, answeredCount: this.countAnswered() };
+    patch['navCells[' + index + '].state'] = cleaned === '' ? 'unanswered' : 'answered';
+    this.setData(patch);
   },
 
   /** 分数题：分子、分母两个输入框，拼成 "n/d" 存进 answers。 */
@@ -229,6 +256,7 @@ Page({
     if (numerator !== '' || denominator !== '') composed = numerator + '/' + denominator;
     this.answers[index] = composed;
     const patch = { answers: this.answers, answeredCount: this.countAnswered() };
+    patch['navCells[' + index + '].state'] = composed === '' ? 'unanswered' : 'answered';
     if (part === 'numerator') patch.fractionNumerator = cleaned;
     else patch.fractionDenominator = cleaned;
     this.setData(patch);
@@ -248,6 +276,7 @@ Page({
     if (!question) return;
     const kind = question.answerKind || 'integer';
     const stored = this.answers[index] || '';
+    const review = this.result && this.result.questions ? this.result.questions[index] : null;
     let numerator = '';
     let denominator = '';
     if (kind === 'fraction' && stored.indexOf('/') !== -1) {
@@ -265,11 +294,17 @@ Page({
       fractionNumerator: numerator,
       fractionDenominator: denominator,
       currentValue: kind === 'fraction' ? '' : stored,
+      reviewMode: Boolean(review),
+      reviewUserText: review ? (review.verdict === 'blank' ? '未答' : (review.userText || '—')) : '',
+      reviewCorrectAnswer: review ? answerPartOf(review.correctText) : '',
+      reviewVerdict: review ? review.verdict : '',
       inputFocus: false
     });
-    later(() => {
-      this.setData({ inputFocus: true });
-    }, 80);
+    if (!review) {
+      later(() => {
+        this.setData({ inputFocus: true });
+      }, 80);
+    }
   },
 
   /** 切到第 index 题：先失焦再聚焦，避免输入框残留上一题的值。 */
@@ -277,6 +312,13 @@ Page({
     if (!this.questions.length) return;
     const target = Math.min(this.questions.length - 1, Math.max(0, index));
     this.applyQuestion(target);
+  },
+
+  /** 点题号方块跳转；作答和回顾状态都可用。 */
+  jumpTo(event) {
+    const index = Number(event.currentTarget.dataset.index);
+    if (!Number.isInteger(index) || index < 0 || index >= this.questions.length) return;
+    this.goTo(index);
   },
 
   prevQuestion() {
@@ -343,8 +385,31 @@ Page({
       }
       const result = response.data.result;
       console.log('[practice] 批改结果（' + response.source + '）', result);
-      this.setData({ submitting: false, finished: true });
-      this.goResult(result);
+      this.result = result;
+      try {
+        wx.setStorageSync('pendingPracticeResult', result);
+      } catch (error) {
+        console.warn('[practice] 结果缓存失败', error);
+      }
+      this.setData({
+        submitting: false,
+        finished: true,
+        reviewMode: true,
+        summary: {
+          total: result.total,
+          correct: result.correct,
+          wrong: result.wrong,
+          blank: result.blank,
+          accuracyPercent: result.accuracyPercent
+        },
+        navCells: result.questions.map(function (question, index) {
+          return { no: index + 1, state: question.verdict };
+        })
+      });
+      this.applyQuestion(this.data.currentIndex);
+      if (typeof wx.showToast === 'function') {
+        wx.showToast({ title: '已交卷，点击题号可回看', icon: 'none' });
+      }
     } catch (error) {
       console.error('[practice] 提交异常', error);
       if (!this.pageActive) return;
@@ -354,29 +419,10 @@ Page({
     }
   },
 
-  /**
-   * 交给结果页（彭方鑫负责）。
-   * 结果页用 eventChannel 的 'result' 事件接收，或读 wx.getStorageSync('pendingPracticeResult')。
-   */
-  goResult(result) {
-    try {
-      wx.setStorageSync('pendingPracticeResult', result);
-    } catch (error) {
-      console.warn('[practice] 结果缓存失败', error);
-    }
-    wx.showModal({
-      title: '本次练习完成',
-      content: '共 ' + result.total + ' 题：对 ' + result.correct + '，错 ' + result.wrong +
-        '，未答 ' + result.blank + '，正确率 ' + result.accuracyPercent + '%',
-      confirmText: '看结果',
-      cancelText: '留在此页',
-      success: (res) => {
-        if (res.confirm) this.openResultPage(result);
-      }
-    });
-  },
-
-  openResultPage(result) {
+  /** 回顾状态：点题号跳转；结果页仍由彭方鑫负责，这里只负责把 result 交出去。 */
+  openResultPage() {
+    const result = this.result;
+    if (!result) return;
     wx.navigateTo({
       url: '/pages/result/result',
       success: (res) => {
