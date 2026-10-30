@@ -24,9 +24,6 @@ const practiceConfig = require(path.join(MINIAPP, 'utils', 'practice-config.js')
 const IMPLEMENTED = rulesTable.RULES.filter(function (rule) {
   return Boolean(strategies.getStrategy(rule.id));
 });
-const UNSUPPORTED = rulesTable.RULES.filter(function (rule) {
-  return !strategies.getStrategy(rule.id);
-});
 
 function configFor(rule, extra) {
   return Object.assign({
@@ -70,21 +67,40 @@ function assertInRange(rule, strategy, q) {
     } else {
       assert.ok(q.left >= strategy.dividendMin && q.left <= strategy.dividendMax, q.left + ' 被除数越界');
     }
+  } else if (op === 'mixed') {
+    assert.equal(q.answerKind, 'integer');
+    assert.equal(q.tokens.length, 5);
+    assert.ok([q.tokens[0], q.tokens[2], q.tokens[4]].every(function (v) {
+      return Number.isInteger(v) && v >= 0 && v <= 100;
+    }), q.formula + ' 操作数越界');
+    assert.equal(generator.evaluateMixed(q.tokens), q.answer);
+    assert.ok(q.tokens[1] === 'multiply' || q.tokens[1] === 'divide' ||
+      q.tokens[3] === 'multiply' || q.tokens[3] === 'divide', q.formula + ' 不含乘除');
+  } else if (op === 'decimal_add_sub') {
+    assert.equal(q.answerKind, 'decimal');
+    assert.ok(q.leftTenths >= 0 && q.leftTenths <= 100);
+    assert.ok(q.rightTenths >= 0 && q.rightTenths <= 100);
+    assert.ok(q.answerTenths >= 0 && q.answerTenths <= 100);
+    assert.equal(q.answerTenths, q.op === 'add' ? q.leftTenths + q.rightTenths : q.leftTenths - q.rightTenths);
+    assert.equal(q.answer, q.answerTenths / 10);
+  } else if (op === 'fraction_add_sub') {
+    assert.equal(q.answerKind, 'fraction');
+    assert.ok(q.denominator >= 2 && q.denominator <= 9);
+    assert.ok(q.leftNumerator >= 1 && q.leftNumerator < q.denominator);
+    assert.ok(q.rightNumerator >= 1 && q.rightNumerator < q.denominator);
+    const expected = q.op === 'add' ? q.leftNumerator + q.rightNumerator : q.leftNumerator - q.rightNumerator;
+    assert.ok(expected >= 0 && expected <= q.denominator, q.formula + ' 结果越界');
+    assert.equal(q.answerNumerator, expected);
+    assert.equal(q.answer, expected + '/' + q.denominator);
   }
 }
 
 // ---------------------------------------------------------------- 规则与范围
 
-test('10 个整数四则预设可出题，3 个（混合/小数/分数）留给下一阶段', function () {
-  assert.equal(IMPLEMENTED.length, 10);
-  assert.deepEqual(IMPLEMENTED.map(function (r) { return r.id; }).sort(), [
-    'g1_add_20', 'g1_subtract_20',
-    'g2_add_100', 'g2_divide_table', 'g2_multiply_table', 'g2_subtract_100',
-    'g3_add_1000', 'g3_divide_2by1', 'g3_multiply_2by1', 'g3_subtract_1000'
-  ]);
-  assert.deepEqual(UNSUPPORTED.map(function (r) { return r.id; }).sort(), [
-    'g3_decimal_1place', 'g3_fraction_same_den', 'g3_mixed_2step'
-  ]);
+test('13 个设置预设全部有出题策略', function () {
+  assert.equal(IMPLEMENTED.length, 13);
+  assert.equal(IMPLEMENTED.length, rulesTable.RULES.length);
+  assert.equal(strategies.listSupportedRuleIds().length, 13);
 });
 
 test('策略表与规则表一一对应，不会出现有策略没规则的情况', function () {
@@ -157,6 +173,64 @@ test('两位数 ÷ 一位数：被除数 10—99，能整除，除数 1—9', fu
     assert.ok(q.right >= 1 && q.right <= 9);
     assert.equal(q.left % q.right, 0);
     assert.ok(Number.isInteger(q.answer));
+  });
+});
+
+test('混合运算按优先级计算，不是简单从左到右', function () {
+  assert.equal(generator.evaluateMixed([18, 'add', 6, 'multiply', 3]), 36);
+  assert.equal(generator.evaluateMixed([24, 'divide', 3, 'multiply', 2]), 16);
+  assert.equal(generator.evaluateMixed([10, 'subtract', 4, 'divide', 2]), 8);
+  assert.equal(generator.evaluateMixed([8, 'divide', 4, 'divide', 2]), 1);
+  assert.equal(generator.evaluateMixed([10, 'subtract', 2, 'subtract', 3]), 5);
+  assert.equal(generator.evaluateMixed([5, 'divide', 0, 'add', 1]), null);
+  assert.equal(generator.evaluateMixed([7, 'divide', 2, 'add', 1]), null);
+  assert.equal(generator.evaluateMixed([60, 'multiply', 2, 'add', 1]), null);
+});
+
+test('混合运算题：三个 0—100 的数、至少一个乘除、答案与表达式一致', function () {
+  const rule = rulesTable.getRule('g3_mixed_2step');
+  const questions = gen(rule, 50).questions;
+  assert.equal(questions.length, 50);
+  questions.forEach(function (q) {
+    assert.equal(q.tokens.length, 5);
+    assert.equal(generator.evaluateMixed(q.tokens), q.answer);
+    assert.ok(q.tokens[1] === 'multiply' || q.tokens[1] === 'divide' ||
+      q.tokens[3] === 'multiply' || q.tokens[3] === 'divide', q.formula + ' 不含乘除');
+    assert.ok(q.tokens[0] >= 0 && q.tokens[0] <= 100);
+  });
+});
+
+test('小数题：一位小数、结果非负、加减各半', function () {
+  const rule = rulesTable.getRule('g3_decimal_1place');
+  [10, 11].forEach(function (count) {
+    const questions = gen(rule, count, 'decimal-' + count).questions;
+    const adds = questions.filter(function (q) { return q.op === 'add'; }).length;
+    const subs = questions.filter(function (q) { return q.op === 'subtract'; }).length;
+    assert.equal(adds, Math.ceil(count / 2));
+    assert.equal(subs, Math.floor(count / 2));
+    questions.forEach(function (q) {
+      assert.equal(q.answer, q.op === 'add' ? (q.leftTenths + q.rightTenths) / 10 : (q.leftTenths - q.rightTenths) / 10);
+      assert.ok(q.answer >= 0 && q.answer <= 10);
+    });
+  });
+  assert.equal(generator.formatTenths(17), '1.7');
+  assert.equal(generator.formatTenths(100), '10.0');
+});
+
+test('分数题：同分母真分数、结果 0—1、加减各半', function () {
+  const rule = rulesTable.getRule('g3_fraction_same_den');
+  [10, 11].forEach(function (count) {
+    const questions = gen(rule, count, 'fraction-' + count).questions;
+    const adds = questions.filter(function (q) { return q.op === 'add'; }).length;
+    const subs = questions.filter(function (q) { return q.op === 'subtract'; }).length;
+    assert.equal(adds, Math.ceil(count / 2));
+    assert.equal(subs, Math.floor(count / 2));
+    questions.forEach(function (q) {
+      assert.ok(q.denominator >= 2 && q.denominator <= 9);
+      assert.ok(q.leftNumerator < q.denominator && q.rightNumerator < q.denominator);
+      assert.ok(q.answerNumerator >= 0 && q.answerNumerator <= q.denominator);
+      assert.equal(q.answer, q.answerNumerator + '/' + q.denominator);
+    });
   });
 });
 
@@ -269,6 +343,67 @@ test('前导零、空格、非法格式与 4 位答案', function () {
   assert.equal(scoring.gradeAnswers({ questions: questions, answers: [null] }).result.blank, 1);
 });
 
+test('小数答案等值：1 与 1.0、1.7 与 1.70 都算对；格式错误记 invalidFormat', function () {
+  const question = {
+    id: 'd1', operation: 'decimal_add_sub', answerKind: 'decimal', op: 'add',
+    text: '1.2 + 0.5 = ?', leftTenths: 12, rightTenths: 5, answerTenths: 17, answer: 1.7
+  };
+  ['1.7', '1.70', ' 1.7 '].forEach(function (answer) {
+    assert.equal(scoring.gradeAnswers({ questions: [question], answers: [answer] }).result.questions[0].verdict, 'correct', answer);
+  });
+  ['1.', '.5', '1.2.3', 'abc'].forEach(function (answer) {
+    const graded = scoring.gradeAnswers({ questions: [question], answers: [answer] }).result.questions[0];
+    assert.equal(graded.verdict, 'wrong');
+    assert.equal(graded.reason, 'invalidFormat', answer);
+  });
+  const whole = {
+    id: 'd2', operation: 'decimal_add_sub', answerKind: 'decimal', op: 'add',
+    text: '0.5 + 0.5 = ?', leftTenths: 5, rightTenths: 5, answerTenths: 10, answer: 1
+  };
+  ['1', '1.0', '1.00'].forEach(function (answer) {
+    assert.equal(scoring.gradeAnswers({ questions: [whole], answers: [answer] }).result.questions[0].verdict, 'correct', answer);
+  });
+});
+
+test('分数答案等值：2/4 与 1/2、0/1、1 都算对；分母为 0 非法', function () {
+  const half = {
+    id: 'f1', operation: 'fraction_add_sub', answerKind: 'fraction', op: 'add',
+    text: '1/4 + 1/4 = ?', answerNumerator: 2, answerDenominator: 4, answer: '2/4'
+  };
+  ['2/4', '1/2', ' 1/2 ', '3/6'].forEach(function (answer) {
+    assert.equal(scoring.gradeAnswers({ questions: [half], answers: [answer] }).result.questions[0].verdict, 'correct', answer);
+  });
+  assert.equal(scoring.gradeAnswers({ questions: [half], answers: ['1/3'] }).result.questions[0].verdict, 'wrong');
+  assert.equal(scoring.gradeAnswers({ questions: [half], answers: ['1/0'] }).result.questions[0].reason, 'invalidFormat');
+  assert.equal(scoring.gradeAnswers({ questions: [half], answers: ['2/4'] }).result.questions[0].correctText, '1/4 + 1/4 = 2/4');
+
+  const zero = {
+    id: 'f2', operation: 'fraction_add_sub', answerKind: 'fraction', op: 'subtract',
+    text: '1/8 - 1/8 = ?', answerNumerator: 0, answerDenominator: 8, answer: '0/8'
+  };
+  ['0/1', '0/8', '0'].forEach(function (answer) {
+    assert.equal(scoring.gradeAnswers({ questions: [zero], answers: [answer] }).result.questions[0].verdict, 'correct', answer);
+  });
+
+  const one = {
+    id: 'f3', operation: 'fraction_add_sub', answerKind: 'fraction', op: 'add',
+    text: '4/8 + 4/8 = ?', answerNumerator: 8, answerDenominator: 8, answer: '8/8'
+  };
+  ['1', '1/1', '8/8'].forEach(function (answer) {
+    assert.equal(scoring.gradeAnswers({ questions: [one], answers: [answer] }).result.questions[0].verdict, 'correct', answer);
+  });
+});
+
+test('混合运算题干与正确答案回显', function () {
+  const question = {
+    id: 'm1', operation: 'mixed', answerKind: 'integer',
+    tokens: [18, 'add', 6, 'multiply', 3], text: '18 + 6 × 3 = ?', answer: 36
+  };
+  const graded = scoring.gradeAnswers({ questions: [question], answers: ['36'] }).result.questions[0];
+  assert.equal(graded.verdict, 'correct');
+  assert.equal(graded.correctText, '18 + 6 × 3 = 36');
+});
+
 test('数量不一致或题目缺答案时拒绝批改', function () {
   const questions = gen(rulesTable.getRule('g1_add_20'), 5).questions;
   assert.equal(scoring.gradeAnswers({ questions: questions, answers: [1] }).code, 'ANSWER_COUNT_MISMATCH');
@@ -324,15 +459,17 @@ test('createQuestionSet 下发脱敏题目，带 ruleId 与规则版本', functi
   });
 });
 
-test('混合、小数、分数返回 UNSUPPORTED_RULE，并说明原因', function () {
-  UNSUPPORTED.forEach(function (rule) {
+test('13 个预设都能通过请求层出题，且题目不含答案', function () {
+  rulesTable.RULES.forEach(function (rule) {
     const response = core.handleRequest({
       action: 'createQuestionSet',
-      payload: { config: configFor(rule) }
+      payload: { config: configFor(rule, { count: 10 }), sessionId: 'all-' + rule.id }
     });
-    assert.equal(response.ok, false, rule.id);
-    assert.equal(response.code, 'UNSUPPORTED_RULE');
-    assert.ok(response.message.indexOf('尚未开放') !== -1, response.message);
+    assert.equal(response.ok, true, rule.id + ': ' + response.message);
+    assert.equal(response.data.questions.length, 10);
+    response.data.questions.forEach(function (q) {
+      assert.equal(q.answer, undefined, rule.id + ' 下发了答案');
+    });
   });
 });
 
@@ -444,11 +581,13 @@ test('本地服务：quizId 找不到时给出可读错误', async function () {
   assert.equal(response.code, 'QUIZ_NOT_FOUND');
 });
 
-test('本地服务：未开放题型返回 UNSUPPORTED_RULE', async function () {
+test('本地服务：未知 ruleId 返回 INVALID_CONFIG', async function () {
   const service = require(path.join(MINIAPP, 'services', 'question-service.js'));
-  const response = await service.createQuestionSet(configFor(rulesTable.getRule('g3_mixed_2step')));
+  const response = await service.createQuestionSet({
+    grade: 1, ruleId: 'unknown', count: 10, mode: 'normal', durationSeconds: 120
+  });
   assert.equal(response.ok, false);
-  assert.equal(response.code, 'UNSUPPORTED_RULE');
+  assert.equal(response.code, 'INVALID_CONFIG');
 });
 
 // ---------------------------------------------------------------- 副本一致性

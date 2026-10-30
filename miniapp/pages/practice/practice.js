@@ -5,7 +5,7 @@
  * 1. onLoad 校验 URL 上的练习设置（沿用设置页 practice-config 的契约）；
  *    URL 不合法时只显示“练习设置无效”，不生成题目（对应验收 T30）。
  * 2. 调 question-service 出题（云端优先，云环境没配好时自动本地兜底）。
- * 3. 已开放 10 个整数四则题型；选择混合、小数、分数时显示“该题型尚未开放”，
+ * 3. 13 个设置预设全部可出题；遇到未知题型时显示“该题型尚未开放”作为兜底，
  *    不会静默降级成别的题型。
  * 4. 逐题作答，答案存在 answers 数组里，空字符串表示未答。
  * 5. 提交时把「题目 + 作答」交给同一套判分逻辑，拿到 result。
@@ -18,7 +18,6 @@ const { fromQuery, toQuery, getConfigDisplay } = require('../../utils/practice-c
 const questionService = require('../../services/question-service');
 
 const TIMER_INTERVAL_MS = 250;
-const INPUT_MAX_LENGTH = 4;
 
 function formatClock(seconds) {
   const safe = Math.max(0, Math.floor(seconds));
@@ -54,7 +53,12 @@ Page({
     currentValue: '',
     answeredCount: 0,
     total: 0,
-    inputMaxLength: INPUT_MAX_LENGTH,
+    answerKind: 'integer',
+    fractionMode: false,
+    fractionNumerator: '',
+    fractionDenominator: '',
+    inputType: 'number',
+    inputMaxLength: 4,
     inputFocus: false,
     submitting: false,
     finished: false,
@@ -140,14 +144,11 @@ Page({
         questions: data.questions,
         answers: answers,
         total: data.questions.length,
-        currentIndex: 0,
-        currentText: data.questions[0].text,
-        currentValue: '',
         answeredCount: 0,
-        inputFocus: true,
         finished: false,
         submitting: false
       });
+      this.applyQuestion(0);
       this.beginQuiz();
       console.log('[practice] 出题来源：' + response.source + '，ruleId：' + data.questions[0].ruleId + '，共 ' + data.questions.length + ' 题');
     } catch (error) {
@@ -193,15 +194,44 @@ Page({
     }
   },
 
-  /** 数字键盘输入：只接受最多 4 位数字（1000 以内）。 */
+  /** 数字键盘输入：整数最多 4 位；小数允许一个小数点。 */
   onAnswerInput(event) {
     if (this.data.finished) return;
     const index = Number(event.currentTarget.dataset.index);
     if (!Number.isInteger(index) || index < 0 || index >= this.answers.length) return;
     const raw = event.detail.value === undefined || event.detail.value === null ? '' : String(event.detail.value);
-    const cleaned = raw.replace(/[^0-9]/g, '').slice(0, INPUT_MAX_LENGTH);
+    let cleaned;
+    if (this.data.answerKind === 'decimal') {
+      cleaned = raw.replace(/[^0-9.]/g, '');
+      const dot = cleaned.indexOf('.');
+      if (dot !== -1) {
+        cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '');
+      }
+      cleaned = cleaned.slice(0, 4);
+    } else {
+      cleaned = raw.replace(/[^0-9]/g, '').slice(0, 4);
+    }
     this.answers[index] = cleaned;
     this.setData({ currentValue: cleaned, answers: this.answers, answeredCount: this.countAnswered() });
+  },
+
+  /** 分数题：分子、分母两个输入框，拼成 "n/d" 存进 answers。 */
+  onFractionInput(event) {
+    if (this.data.finished) return;
+    const index = this.data.currentIndex;
+    if (!Number.isInteger(index) || index < 0 || index >= this.answers.length) return;
+    const part = event.currentTarget.dataset.part;
+    const raw = event.detail.value === undefined || event.detail.value === null ? '' : String(event.detail.value);
+    const cleaned = raw.replace(/[^0-9]/g, '').slice(0, 2);
+    const numerator = part === 'numerator' ? cleaned : this.data.fractionNumerator;
+    const denominator = part === 'denominator' ? cleaned : this.data.fractionDenominator;
+    let composed = '';
+    if (numerator !== '' || denominator !== '') composed = numerator + '/' + denominator;
+    this.answers[index] = composed;
+    const patch = { answers: this.answers, answeredCount: this.countAnswered() };
+    if (part === 'numerator') patch.fractionNumerator = cleaned;
+    else patch.fractionDenominator = cleaned;
+    this.setData(patch);
   },
 
   countAnswered() {
@@ -212,20 +242,41 @@ Page({
     return count;
   },
 
-  /** 切到第 index 题：载入该题已填的答案，先失焦再聚焦，避免输入框残留上一题的值。 */
-  goTo(index) {
-    if (!this.questions.length) return;
-    const target = Math.min(this.questions.length - 1, Math.max(0, index));
-    const answer = this.answers[target] || '';
+  /** 载入第 index 题：按题型切换输入方式（整数/小数/分数），并恢复已填答案。 */
+  applyQuestion(index) {
+    const question = this.questions[index];
+    if (!question) return;
+    const kind = question.answerKind || 'integer';
+    const stored = this.answers[index] || '';
+    let numerator = '';
+    let denominator = '';
+    if (kind === 'fraction' && stored.indexOf('/') !== -1) {
+      const parts = stored.split('/');
+      numerator = parts[0] || '';
+      denominator = parts[1] || '';
+    }
     this.setData({
-      currentIndex: target,
-      currentText: this.questions[target].text,
-      currentValue: answer,
+      currentIndex: index,
+      currentText: question.text,
+      answerKind: kind,
+      fractionMode: kind === 'fraction',
+      inputType: kind === 'decimal' ? 'digit' : 'number',
+      inputMaxLength: kind === 'fraction' ? 2 : 4,
+      fractionNumerator: numerator,
+      fractionDenominator: denominator,
+      currentValue: kind === 'fraction' ? '' : stored,
       inputFocus: false
     });
     later(() => {
       this.setData({ inputFocus: true });
     }, 80);
+  },
+
+  /** 切到第 index 题：先失焦再聚焦，避免输入框残留上一题的值。 */
+  goTo(index) {
+    if (!this.questions.length) return;
+    const target = Math.min(this.questions.length - 1, Math.max(0, index));
+    this.applyQuestion(target);
   },
 
   prevQuestion() {

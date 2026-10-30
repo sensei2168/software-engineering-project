@@ -15,7 +15,7 @@
       <view class="card-title">{{unavailable.title}}</view>
       <view class="summary-line" wx:if="{{display}}">本次选择：{{display.gradeLabel}} · {{display.ruleLabel}} · {{display.rangeLabel}}</view>
       <view class="note">{{unavailable.message}}</view>
-      <view class="note">目前可以完整练习的是整数四则：加减法（20／100／1000 以内）、表内乘除、两位数乘一位数和两位数除以一位数。混合运算、小数和分数会在下一阶段接入。</view>
+      <view class="note">目前 13 个设置预设都已接入出题与判分。如果出现本提示，说明题型配置异常，请返回设置重新选择。</view>
     </view>
     <button class="primary" bindtap="backToSettings">返回练习设置</button>
   </block>
@@ -38,10 +38,38 @@
     <view class="quiz-card">
       <view class="quiz-hint">{{display.gradeLabel}} · {{display.ruleLabel}} · {{display.rangeLabel}} · {{config.mode === 'timed' ? '限时' : '不限时'}}</view>
       <view class="quiz-question">{{currentText}}</view>
-      <view class="quiz-answer">
+      <view wx:if="{{fractionMode}}" class="quiz-fraction">
+        <view class="fraction-inputs">
+          <input
+            class="fraction-input"
+            type="number"
+            maxlength="2"
+            value="{{fractionNumerator}}"
+            placeholder="分子"
+            placeholder-class="fraction-placeholder"
+            focus="{{inputFocus && !finished}}"
+            disabled="{{finished}}"
+            data-part="numerator"
+            bindinput="onFractionInput"
+          />
+          <view class="fraction-bar"></view>
+          <input
+            class="fraction-input"
+            type="number"
+            maxlength="2"
+            value="{{fractionDenominator}}"
+            placeholder="分母"
+            placeholder-class="fraction-placeholder"
+            disabled="{{finished}}"
+            data-part="denominator"
+            bindinput="onFractionInput"
+          />
+        </view>
+      </view>
+      <view wx:else class="quiz-answer">
         <input
           class="quiz-input"
-          type="number"
+          type="{{inputType}}"
           maxlength="{{inputMaxLength}}"
           value="{{currentValue}}"
           placeholder="?"
@@ -54,7 +82,7 @@
           bindconfirm="nextQuestion"
         />
       </view>
-      <view class="quiz-tip">{{finished ? '本次已交卷，可以翻看各题答案' : '输入答案后点“下一题”，可随时返回修改'}}</view>
+      <view class="quiz-tip">{{finished ? '本次已交卷，可以翻看各题答案' : (fractionMode ? '分子、分母都要填；整数 0 写成 0/1，1 写成 1/1' : '输入答案后点“下一题”，可随时返回修改')}}</view>
     </view>
 
     <view class="quiz-actions">
