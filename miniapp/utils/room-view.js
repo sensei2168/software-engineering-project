@@ -21,10 +21,12 @@ function configSummary(config) {
 function viewRoom(room, demo = false) {
   const states = ['waiting', 'countdown', 'playing', 'finished', 'cancelled', 'expired'];
   if (!room || !states.includes(room.status) || !Array.isArray(room.members) ||
-      room.members.length < 1 || room.members.length > 2 || !Number.isSafeInteger(room.version) ||
-      typeof room.roomId !== 'string' || !/^\d{6}$/.test(room.code) || !roomConfig(room.config).ok ||
+      room.members.length < 1 || room.members.length > 2 || !Number.isSafeInteger(room.version) || room.version < 1 ||
+      typeof room.roomId !== 'string' || !/^r_[a-f0-9]{40}$/.test(room.roomId) || !/^\d{6}$/.test(room.code) ||
+      !room.config || room.config.mode !== 'timed' || !roomConfig(room.config).ok ||
+      !Number.isFinite(room.createdAt) || !Number.isFinite(room.expiresAt) || room.expiresAt <= room.createdAt ||
       room.members.filter(member => member.isSelf === true).length !== 1 ||
-      room.members.some(member => !['host', 'guest'].includes(member.role) || typeof member.ready !== 'boolean') ||
+      room.members.some(member => !['host', 'guest'].includes(member.role) || typeof member.ready !== 'boolean' || typeof member.isSelf !== 'boolean') ||
       room.members.filter(member => member.role === 'host').length !== 1) {
     const error = new Error('房间状态不完整，请刷新后重试'); error.code = 'INVALID_RESPONSE'; throw error;
   }

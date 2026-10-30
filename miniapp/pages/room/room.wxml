@@ -1,15 +1,130 @@
-<view class="page">
-  <view class="status">即将开放</view>
-  <view class="title">和伙伴一起练习</view>
-  <view class="card">
-    <view class="card-title">双人答题</view>
-    <view class="note">比赛功能正在准备中，当前还不能创建或加入房间。</view>
+<view class="room-page">
+  <view wx:if="{{source === 'demo'}}" class="room-banner demo-banner">模拟演示 · 全部房间和成员均为演示数据</view>
+  <view class="room-mode" wx:if="{{allowDemo}}">
+    <text>{{source === 'demo' ? '仅供页面演示，不连接真实房间' : '当前连接真实基础房间'}}</text>
+    <button class="room-button mode-switch" bindtap="switchSource" disabled="{{busy}}">{{source === 'demo' ? '切换真实房间' : '进入模拟演示'}}</button>
   </view>
-  <view class="card">
-    <view class="card-title">计划中的玩法</view>
-    <view class="summary-line">1. 一人创建房间，另一人输入房间码加入。</view>
-    <view class="summary-line">2. 双方准备后，完成同一组限时题目。</view>
-    <view class="summary-line">3. 比赛结束后，一起查看结果。</view>
+  <view class="room-banner" wx:if="{{pendingAction}}">
+    <view>有操作尚未确认，请先重试，避免重复创建或提交。</view>
+    <button class="room-button secondary" bindtap="retryConnection" disabled="{{busy}}">重试未确认操作</button>
   </view>
-  <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
+  <view class="room-error" wx:if="{{error}}">{{error}}</view>
+  <view class="room-notice" wx:if="{{notice}}">{{notice}}</view>
+
+  <block wx:if="{{stage === 'create'}}">
+    <view class="room-heading">创建一场小比赛</view>
+    <view class="room-subtitle">选好比赛内容，邀请一位伙伴一起参加。</view>
+    <view class="room-card">
+      <view class="room-label">比赛内容</view>
+      <view class="room-summary">{{configSummary}}</view>
+      <button class="room-button secondary" bindtap="toggleConfig" disabled="{{busy || !!pendingAction}}">{{editConfig ? '收起设置' : '修改比赛设置'}}</button>
+      <view wx:if="{{editConfig}}" class="room-config">
+        <view class="room-label">年级</view>
+        <view class="room-options">
+          <button wx:for="{{grades}}" wx:key="value" class="room-button room-option {{config.grade === item.value ? 'selected' : ''}}" data-value="{{item.value}}" bindtap="chooseGrade" disabled="{{busy}}">{{item.label}}<text wx:if="{{config.grade === item.value}}"> ✓</text></button>
+        </view>
+        <view class="room-label">题型</view>
+        <picker range="{{ruleChoices}}" range-key="label" value="{{ruleIndex}}" bindchange="chooseRule" disabled="{{busy}}"><view class="room-picker">{{ruleChoices[ruleIndex].label}}<text class="picker-arrow">⌄</text></view></picker>
+        <view class="room-hint">{{ruleChoices[ruleIndex].rangeLabel}}</view>
+        <view class="room-label">题量 <text class="room-detail">10—50 道</text></view>
+        <input class="room-input" type="number" maxlength="3" value="{{countText}}" bindinput="inputCount" disabled="{{busy}}" confirm-type="done" placeholder="默认30道" aria-label="题量，10到50之间的整数" />
+        <view class="room-label">比赛时长</view>
+        <view class="room-options">
+          <button wx:for="{{durations}}" wx:key="*this" class="room-button room-option {{config.durationSeconds === item ? 'selected' : ''}}" data-value="{{item}}" bindtap="chooseDuration" disabled="{{busy}}">{{item}}秒<text wx:if="{{config.durationSeconds === item}}"> ✓</text></button>
+        </view>
+        <view class="room-error" wx:if="{{configError}}">{{configError}}</view>
+        <button class="room-button secondary" bindtap="confirmConfig" disabled="{{busy}}">确认比赛设置</button>
+      </view>
+    </view>
+    <button class="room-button primary" bindtap="createRoom" loading="{{busy}}" disabled="{{busy || !!pendingAction}}">创建房间</button>
+    <button class="room-button quiet" bindtap="openJoin" disabled="{{busy}}">输入房间码加入</button>
+    <view class="room-hint">同一房间使用相同题目和规则。{{source === 'live' ? '当前可创建、加入及准备，联网开赛尚未开放。' : '可完整演示开赛和取消，答题页暂未接入。'}}</view>
+  </block>
+
+  <block wx:elif="{{stage === 'join'}}">
+    <view class="room-heading">加入伙伴的房间</view><view class="room-subtitle">输入对方分享的6位数字房间码。</view>
+    <view class="room-card">
+      <view class="room-label">房间码</view>
+      <input class="room-input code-input" type="number" maxlength="6" value="{{inputCode}}" bindinput="inputRoomCode" disabled="{{busy || !!pendingAction}}" placeholder="请输入6位数字房间码" confirm-type="done" aria-label="6位数字房间码" />
+      <view class="room-error" wx:if="{{inputError}}">{{inputError}}</view>
+      <view class="room-hint">保留开头的0，可以向房主索取房间码。</view>
+    </view>
+    <button class="room-button primary" bindtap="joinRoom" loading="{{busy}}" disabled="{{busy || !!pendingAction}}">加入房间</button>
+    <button class="room-button secondary" bindtap="openCreate" disabled="{{busy}}">我来创建房间</button>
+  </block>
+
+  <block wx:elif="{{stage === 'waiting' || stage === 'ready' || stage === 'both'}}">
+    <view class="room-heading">{{title}}</view>
+    <view class="room-subtitle">{{stage === 'waiting' ? '把房间码发给伙伴，加入后一起准备。' : '每个人只需确认自己的准备状态。'}}</view>
+    <view class="room-card code-card">
+      <view class="room-hint">{{source === 'demo' ? '演示房间码' : '房间码'}}</view>
+      <text class="room-code" selectable="true">{{room.code}}</text>
+      <button class="room-button secondary" bindtap="copyCode" disabled="{{busy}}">{{source === 'demo' ? '复制演示房间码' : '复制房间码'}}</button>
+    </view>
+    <view class="room-card">
+      <view class="members-heading"><text>参赛成员</text><text class="room-detail">{{capacityText}}</text></view>
+      <view wx:for="{{slots}}" wx:key="key" class="room-member {{item.empty ? 'member-empty' : ''}}">
+        <view class="room-avatar">{{item.avatar}}</view>
+        <view class="member-info"><view class="member-name">{{item.name}}</view><view class="room-hint">{{item.roleLabel}}</view></view>
+        <view class="member-status {{item.ready ? 'ready-status' : ''}}">{{item.stateLabel}}</view>
+      </view>
+    </view>
+    <view class="room-summary">{{summary}}</view>
+    <button wx:if="{{stage === 'waiting' && source === 'live'}}" class="room-button primary" open-type="share" disabled="{{busy || !!pendingAction}}">邀请伙伴</button>
+    <button wx:if="{{canPrepare}}" class="room-button secondary" bindtap="toggleReady" disabled="{{busy || !!pendingAction}}">{{ownReady ? '取消准备' : '我准备好了'}}</button>
+    <button wx:if="{{isHost && stage !== 'waiting'}}" class="room-button primary" bindtap="startMatch" disabled="{{busy || !!pendingAction || !canStart}}">{{source === 'live' ? '联网开赛尚未开放' : '开始比赛'}}</button>
+    <button wx:if="{{!isHost}}" class="room-button primary" disabled="true">等待房主开始</button>
+    <view class="room-hint" wx:if="{{source === 'live'}}">当前支持真实房间及准备；开赛与取消接口还在接入中。</view>
+    <view class="room-hint" wx:else>双方准备后，由房主开始3秒倒计时。</view>
+    <button class="room-button secondary" bindtap="refreshRoom" disabled="{{busy}}">刷新房间状态</button>
+    <button class="room-button quiet" bindtap="leaveRoom" disabled="{{busy || !!pendingAction}}">退出房间</button>
+    <view class="room-hint">等待有效期剩余约 {{waitingSeconds}} 秒。页面返回时会读取当前状态。</view>
+  </block>
+
+  <block wx:elif="{{stage === 'countdown'}}">
+    <view class="room-centered"><view class="room-badge">双方已准备</view><view class="room-heading">比赛马上开始</view><view class="room-subtitle">准备作答，倒计时结束后进入比赛。</view><view class="count-circle">{{countdown}}</view></view>
+    <view class="room-summary">房间 {{room.code}} · {{capacityText}}<view>{{summary}}</view></view>
+    <button class="room-button secondary" bindtap="cancelStart" disabled="{{busy || !!pendingAction || source !== 'demo'}}">取消开始</button>
+    <button class="room-button quiet" bindtap="leaveRoom" disabled="{{busy || !!pendingAction}}">退出房间</button>
+    <view class="room-hint">重连按原定时间继续，不重新倒计时。</view>
+  </block>
+
+  <block wx:elif="{{stage === 'playing' || stage === 'finished'}}">
+    <view class="room-centered"><view class="state-symbol">✓</view><view class="room-heading">{{title}}</view><view class="room-subtitle">{{stage === 'playing' ? '这里是比赛答题页接入位置。' : '这里是比赛结果页接入位置。'}}<view>当前页面未生成题目或成绩。</view></view></view>
+    <view class="room-summary">房间 {{room.code}} · {{capacityText}}<view>{{summary}}</view></view>
+    <view class="room-hint" wx:if="{{stage === 'playing'}}">原定比赛剩余约 {{phaseSeconds}} 秒，切后台不暂停。</view>
+    <button class="room-button secondary" bindtap="refreshRoom" disabled="{{busy}}">刷新当前状态</button>
+    <button wx:if="{{stage === 'finished'}}" class="room-button secondary" bindtap="openCreate" disabled="{{busy || !!pendingAction}}">返回房间入口</button>
+  </block>
+
+  <block wx:else>
+    <view class="room-centered">
+      <view class="state-symbol">{{stage === 'full' ? '2/2' : stage === 'offline' ? '···' : '!'}}</view>
+      <view class="room-heading">{{stage === 'full' ? '这个房间已经满了' : stage === 'offline' ? '暂时无法连接房间' : stage === 'cancelled' ? '房间已关闭' : '房间已失效'}}</view>
+      <view class="room-subtitle">{{stage === 'offline' ? '连接中断不代表伙伴退出。重试将读取原房间的当前状态。' : stage === 'cancelled' ? '房主已关闭房间，不能继续本局。' : '请核对房间码，或创建一个新房间。'}}</view>
+    </view>
+    <view class="room-summary" wx:if="{{room}}">房间 {{room.code}} · {{capacityText}}<view>{{summary}}</view></view>
+    <block wx:if="{{stage === 'offline'}}">
+      <button class="room-button primary" bindtap="retryConnection" disabled="{{busy}}" loading="{{busy}}">{{pendingAction ? '重试未确认操作' : '重试连接'}}</button>
+      <button class="room-button secondary" bindtap="openJoin" disabled="{{busy || !!pendingAction}}">返回加入页面</button>
+    </block>
+    <block wx:else>
+      <button class="room-button primary" bindtap="openJoin" disabled="{{busy || !!pendingAction}}">重新输入房间码</button>
+      <button class="room-button secondary" bindtap="openCreate" disabled="{{busy || !!pendingAction}}">创建新房间</button>
+    </block>
+  </block>
+
+  <view wx:if="{{source === 'demo' && allowDemo}}" class="room-demo-tools">
+    <view class="room-label">演示控制 · 不是比赛操作</view>
+    <view class="room-hint">482731正常；012345含前导0；111111房满；222222失效；333333首次连接失败。以下按钮明确模拟伙伴及服务端事件。</view>
+    <view class="demo-grid">
+      <button class="room-button demo-tool" data-event="partnerJoin" bindtap="demoEvent" disabled="{{busy || !!pendingAction || !room}}">伙伴加入</button>
+      <button class="room-button demo-tool" data-event="partnerReady" bindtap="demoEvent" disabled="{{busy || !!pendingAction || !room}}">切换伙伴准备</button>
+      <button class="room-button demo-tool" data-event="switchRole" bindtap="demoEvent" disabled="{{busy || !!pendingAction || !room}}">切换房主／加入者</button>
+      <button class="room-button demo-tool" data-event="hostStart" bindtap="demoEvent" disabled="{{busy || !!pendingAction || !room}}">模拟房主开始</button>
+      <button class="room-button demo-tool" data-event="disconnect" bindtap="demoEvent" disabled="{{busy || !room}}">模拟连接失败</button>
+      <button class="room-button demo-tool" data-event="cancelStart" bindtap="demoEvent" disabled="{{busy || !room}}">服务端取消开始</button>
+      <button class="room-button demo-tool" data-event="closeRoom" bindtap="demoEvent" disabled="{{busy || !room}}">服务端关闭房间</button>
+    </view>
+  </view>
 </view>

@@ -48,7 +48,7 @@ function createMockRoomClient({ wxApi, now = Date.now }) {
       if (action === 'get') {
         room = snapshot();
         if (payload.roomId !== room.roomId) fail('ROOM_NOT_FOUND', '模拟房间不存在');
-        return response({ room });
+        return response({ room, event: room.lastEvent || '' });
       }
       if (action === 'create') {
         const config = roomConfig(payload.config);
@@ -73,15 +73,18 @@ function createMockRoomClient({ wxApi, now = Date.now }) {
           if (room.members.length !== 2) fail('NEED_TWO_MEMBERS', '请等待另一位伙伴');
           if (typeof payload.ready !== 'boolean') fail('INVALID_ARGUMENT', '准备状态无效');
           own.ready = payload.ready;
+          room.lastEvent = '模拟服务端事件：我' + (own.ready ? '已准备。' : '取消准备。');
         } else if (action === 'start') {
           if (state.role !== 'host') fail('NOT_HOST', '只有房主可以开始');
           if (room.status !== 'waiting' || room.members.length !== 2 || !room.members.every(m => m.ready)) fail('NOT_READY', '需要双方准备');
           room.status = 'countdown'; room.attemptId = 'demo-attempt-' + (state.serial + 1);
           room.startAt = now() + COUNTDOWN_MS; room.endAt = room.startAt + room.config.durationSeconds * 1000;
+          room.lastEvent = '模拟服务端事件：房主开始新批次，3秒后开赛。';
         } else if (action === 'cancelStart') {
           if (room.status !== 'countdown') fail('INVALID_STATE', '已经开赛或取消，不能取消开始');
           room.status = 'waiting'; room.attemptId = null; room.startAt = null; room.endAt = null;
           room.members.forEach(m => { m.ready = false; });
+          room.lastEvent = '模拟服务端事件：参与者取消开始，保留两人并清除准备。';
         } else if (action === 'leave') {
           if (!['waiting', 'countdown'].includes(room.status)) fail('INVALID_STATE', '已开赛，退出规则需后续比赛接口接入');
           data = { roomId: room.roomId, left: true, closed: state.role === 'host' || room.status === 'countdown' };
