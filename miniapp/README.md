@@ -6,11 +6,11 @@
 2. 目录选择本文件所在的 `miniapp` 文件夹，而不是外层仓库。
 3. AppID 已写入 `project.config.json`：`wxeeac1150bc72adb2`。
 4. 导入后点击“编译”。以该小程序管理员或已添加的开发者身份登录。
-5. 当前使用微信原生 JavaScript、WXML、WXSS，不需要安装第三方依赖、构建 npm 或创建云环境。
+5. 普通页面使用微信原生 JavaScript、WXML、WXSS，前端无需构建 npm。房间后端和出题云函数需要单独部署；不连接云环境时，设置、练习与本地判分仍可运行。
 
 ## 已有与待做
 
-已有：六个注册页面、首页导航、普通／限时设置切换、一至三年级的题型选择、10—50 整数题量验证、设置到答题页的参数传递与摘要展示，以及应用头像与基础配色。
+已有：原六个业务页面、首页导航、普通／限时设置切换、一至三年级的题型选择、10—50 整数题量验证、设置到答题页的参数传递与摘要展示，以及应用头像与基础配色。另新增第七个页面 `pages/backend-check/backend-check`，用于开发版／体验版的真实后端联调，首页没有该入口。
 
 **当前可演示**：13 个设置预设全部能真实出题、作答和批改——一年级 20 以内、二年级 100 以内、
 三年级 1000 以内的加减法，表内乘除，两位数乘/除以一位数，整数两步混合运算，一位小数加减，
@@ -24,7 +24,11 @@
 
 完整题型规则、参数约定及联调说明见外层 [年级题型设置交付说明](../docs/年级题型设置交付说明.md)，出题与判分的技术约定见[接口与判分说明](../docs/接口与判分说明.md)。
 
-未实现：结果页展示、错题、记录存储、房间、可信身份、云函数部署、比赛与同步。结果页已注册，但在彭方鑫接入前没有业务展示。
+新增代码：`cloudfunctions/roomService` 提供身份、创建／加入／查询／准备／退出房间、容量与权限校验、重复请求处理；`utils/room-client.js` 提供调用和未确认操作恢复。已部署到 cloud1；2026-10-30 袁嘉亮确认双账号基础房间五项测试通过，第三账号、并发和真实断网恢复仍待验证。详见[接口交付](../docs/08_组长后端第一阶段交付与接口.md)及[部署指南](../docs/09_云开发部署与双账号验证.md)。
+
+共同开发环境在 `config/cloud.js` 集中配置为 `cloud1-d6gvp9cql29a1164e`。联调页首次打开会自动填入该环境；若曾手动保存其他环境，需核对并改回本环境。`createRoomClient({wxApi:wx})` 默认使用该配置，也可显式传 envId；当前普通页面不自动调用云服务。
+
+未实现：结果页展示、错题、练习记录存储、正式房间页面接入、开赛／取消开赛、比赛中同步与真实在线比赛。结果页已注册，但在彭方鑫接入前没有业务展示。`createQuestionSet` 云函数已写好但尚未部署；在题目写入云数据库之前，出题与判分继续走本地兜底（`utils/cloud-config.js` 中的开关保持关闭）。
 
 这是一份开发基础项目，不能视为已完成课程要求或可发布版本。AppID 的有效性和开发权限需在开发者工具中确认；尚未确认服务类目、审核和云资源条件。
 
@@ -34,10 +38,11 @@
 |---|---|---|
 | `project.config.json`、`app.*` | 建项配置、页面注册、全局样式 | 袁嘉亮协调；样式与闫心如共同维护 |
 | `pages/home/`、`pages/settings/`、`utils/practice-config.js`、`utils/practice-rules.js`、`pages/room/` | 首页、设置、题型规则、房间交互 | 闫心如 |
-| `pages/practice/`、`utils/question/`、`services/` | 答题页、出题与判分、云端/本地切换 | 何顺 |
-| `cloudfunctions/` | 出题与收卷云函数（环境与部署由袁嘉亮负责） | 何顺、袁嘉亮 |
+| `pages/practice/`、`utils/question/`、`services/` | 答题页、出题与判分、题目导航与回顾 | 何顺 |
+| `cloudfunctions/createQuestionSet/` | 出题与收卷云函数（待题目入库后启用） | 何顺、袁嘉亮 |
 | `pages/result/`、`pages/history/` | 结果、记录；后续存储与恢复 | 彭方鑫 |
-| 后端目录待建立 | 身份权限、房间与服务端比赛流程 | 袁嘉亮、何顺；彭方鑫协助同步 |
+| `cloudfunctions/roomService/`、`pages/backend-check/` | 身份权限、基础房间后端及联调 | 袁嘉亮；后续何顺接入裁判，彭方鑫协助同步 |
+| `utils/room-client.js` | 统一云函数调用、待确认请求恢复 | 袁嘉亮维护接口；闫心如、彭方鑫复用 |
 
 AppID 是项目标识，不是 AppSecret。当前代码无需填写 AppSecret；不要把密钥放入客户端或公开仓库。
 
@@ -63,7 +68,7 @@ AppID 是项目标识，不是 AppSecret。当前代码无需填写 AppSecret；
 - 限时 60 秒：右上角倒计时，归零自动交卷，且只弹一次结果。
 - 非法链接（如 `grade=1&ruleId=g3_fraction_same_den`）只显示「练习设置无效」，不展示有效配置。
 - 返回练习设置保留原来的年级、题型、题量和时长。
-- 房间及记录入口能打开，说明功能尚未开放。
+- 房间及记录入口能打开；开发版／体验版可从 `pages/backend-check/backend-check` 检查云环境与房间后端。
 - 开发者工具控制台没有编译错误。每位成员记录自己的工具版本、手机与检查结果，未执行的检查不要标为通过。
 
 ## 自动检查
@@ -71,18 +76,16 @@ AppID 是项目标识，不是 AppSecret。当前代码无需填写 AppSecret；
 在外层本地仓库目录运行：
 
 ```powershell
-node --test tests/question.test.js          # 出题、判分、接口契约、云函数副本一致性
-node --test tests/practice-settings.test.cjs # 设置页到答题页的参数往返（含 13 个题型）
-node --test tests/practice-navigation.test.cjs # 题目导航、交卷回顾、结果跳转
+npm test                                    # 设置、房间、出题判分、答题页导航
+node scripts/sync-room-contract.cjs --check # 核对前后端题型配置
 ```
 
-出题与判分用例不依赖微信开发者工具（当前 61 项）。设置页的 39 项用例用于确认本轮改动没有破坏原有参数契约。
-答题页导航的 3 项用例覆盖未答/已答标记、交卷分色、回看答案和 50 题跳转。
-两者都不替代微信开发者工具和真机验证。
+出题与判分用例 61 项、设置页 39 项、答题页导航 3 项；房间与联调页用例由袁嘉亮维护。
+测试没有连接真实云环境，不替代微信开发者工具和真机验证。
 
 布局回归可运行 `node tests/settings-layout.browser.cjs`，需要本机 Chrome（可用 CHROME_PATH 指定路径）。
 它检查 320／375／430 宽度下原生按钮默认尺寸是否导致重叠或越界；不替代真机复查。
 
 ## 配置参考
 
-项目配置参考 [微信官方示例](https://github.com/wechat-miniprogram/miniprogram-demo/blob/master/project.config.json)，页面注册参考 [官方 app.json 示例](https://github.com/wechat-miniprogram/miniprogram-demo/blob/master/miniprogram/app.json)。本项目未引入示例中的第三方依赖或云服务。
+项目配置参考 [微信官方示例](https://github.com/wechat-miniprogram/miniprogram-demo/blob/master/project.config.json)，页面注册参考 [官方 app.json 示例](https://github.com/wechat-miniprogram/miniprogram-demo/blob/master/miniprogram/app.json)。房间后端单独依赖 `wx-server-sdk@4.0.2`；云函数目录从前端代码包中排除。

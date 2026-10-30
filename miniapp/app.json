@@ -5,7 +5,8 @@
     "pages/practice/practice",
     "pages/result/result",
     "pages/room/room",
-    "pages/history/history"
+    "pages/history/history",
+    "pages/backend-check/backend-check"
   ],
   "window": {
     "navigationBarTitleText": "口算小搭档",

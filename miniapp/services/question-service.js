@@ -21,6 +21,7 @@ const localSessions = {};
 const localOrder = [];
 
 function canUseCloud() {
+  if (!cloudConfig.QUESTION_CLOUD_ENABLED) return false;
   if (!cloudConfig.CLOUD_ENV) return false;
   if (typeof wx === 'undefined' || !wx.cloud || !wx.cloud.callFunction) return false;
   return true;

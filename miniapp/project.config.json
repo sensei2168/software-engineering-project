@@ -32,6 +32,10 @@
   "packOptions": {
     "ignore": [
       {
+        "value": "cloudfunctions",
+        "type": "folder"
+      },
+      {
         "value": "README.md",
         "type": "file"
       }
@@ -39,5 +43,18 @@
     "include": []
   },
   "simulatorPluginLibVersion": {},
-  "editorSetting": {}
+  "editorSetting": {},
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "后端联调",
+          "pathName": "pages/backend-check/backend-check",
+          "query": "",
+          "scene": null,
+          "launchMode": "default"
+        }
+      ]
+    }
+  }
 }
