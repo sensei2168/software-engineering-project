@@ -4,3 +4,5 @@ miniapp/.vscode/
 node_modules/
 .DS_Store
 Thumbs.db
+.local-pnpm-store/
+.artifacts/

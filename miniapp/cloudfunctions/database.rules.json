@@ -1,0 +1,5 @@
+{
+  "room_p2_rooms": { "read": false, "write": false },
+  "room_p2_codes": { "read": false, "write": false },
+  "room_p2_requests": { "read": false, "write": false }
+}

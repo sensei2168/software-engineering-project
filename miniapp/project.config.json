@@ -1,6 +1,7 @@
 {
   "description": "口算小搭档：课程项目基础页面，业务功能待实现",
   "miniprogramRoot": "./",
+  "cloudfunctionRoot": "cloudfunctions/",
   "compileType": "miniprogram",
   "appid": "wxeeac1150bc72adb2",
   "projectname": "kousuan-xiaodadang",
@@ -31,6 +32,10 @@
   "packOptions": {
     "ignore": [
       {
+        "value": "cloudfunctions",
+        "type": "folder"
+      },
+      {
         "value": "README.md",
         "type": "file"
       }
@@ -38,5 +43,18 @@
     "include": []
   },
   "simulatorPluginLibVersion": {},
-  "editorSetting": {}
+  "editorSetting": {},
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "后端联调",
+          "pathName": "pages/backend-check/backend-check",
+          "query": "",
+          "scene": null,
+          "launchMode": "default"
+        }
+      ]
+    }
+  }
 }
