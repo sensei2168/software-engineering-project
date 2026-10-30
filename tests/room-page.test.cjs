@@ -50,7 +50,9 @@ test('R1 ready reconnect preserves both people and each readiness flag', async (
 });
 test('R1 countdown reconnect continues original startAt and does not restart three seconds', async () => {
   const { s, p } = await demo(); await both(s, p); await p.startMatch(); const startAt = p.data.room.startAt;
-  await s.advance(1000); await s.demo(p, 'disconnect'); await p.retryConnection();
+  await s.advance(1000); await s.demo(p, 'disconnect');
+  await s.demo(p, 'switchRole'); assert.equal(p.data.stage, 'offline');
+  await p.retryConnection();
   assert.equal(p.data.room.startAt, startAt); assert.equal(p.data.countdown, 2); assert.equal(p.data.capacityText, '2 / 2 人');
   await s.advance(2000); assert.equal(p.data.stage, 'playing');
 });

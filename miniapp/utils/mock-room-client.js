@@ -124,7 +124,7 @@ function createMockRoomClient({ wxApi, now = Date.now }) {
       if (event === 'switchRole') {
         if (room.members.length !== 2) fail('NEED_TWO_MEMBERS', '先模拟伙伴加入');
         next.role = state.role === 'host' ? 'guest' : 'host'; save(next);
-        return response({ room: snapshot(), event: '已切换演示身份，未改变成员及各自准备状态。' });
+        return response({ room: snapshot(), event: '已切换演示身份，未改变成员及各自准备状态。', disconnected: offline });
       }
       let message;
       if (event === 'cancelStart') {
