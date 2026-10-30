@@ -16,6 +16,7 @@ const root = path.resolve(__dirname, '../miniapp');
 const stats = require('../miniapp/utils/result-stats');
 const fixture = require('../miniapp/utils/dev-result-fixture');
 const session = require('../miniapp/utils/practice-session');
+test.beforeEach(() => session.clearPendingResult());
 
 const clone = (value) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
 
@@ -27,6 +28,9 @@ function createWx(options = {}) {
   const wx = {
     _store: store,
     calls,
+    getAccountInfoSync() {
+      return { miniProgram: { envVersion: options.envVersion || 'develop' } };
+    },
     setStorageSync(key, value) {
       if (options.failWrite) {
         const error = new Error('setStorage:fail exceeding storage max size');
@@ -45,6 +49,7 @@ function createWx(options = {}) {
       return store.has(key) ? clone(store.get(key)) : '';
     },
     removeStorageSync(key) {
+      if (options.swallowRemove) return;
       store.delete(key);
     },
     showToast(value) {
@@ -111,6 +116,142 @@ function instantiate(options) {
 function store() {
   return require('../miniapp/utils/record-store');
 }
+
+// ---------- 审查发现的回归场景 ----------
+test('正式版及无法确认版本时不能经按钮或参数生成测试记录', () => {
+  for (const version of ['release', 'unknown']) {
+    const api = createWx({ envVersion: version });
+    const page = instantiate(resultOptions);
+    page.onLoad({ source: 'dev' });
+    page.onUseDevData();
+    const history = instantiate(historyOptions);
+    history.onShow();
+    history.onViewDevResult();
+    assert.equal(store().countRecords(), 0);
+    assert.equal(page.data.mode, 'empty');
+    assert.equal(api.calls.some(call => call.type === 'navigateTo'), false);
+  }
+  createWx();
+  delete global.wx.getAccountInfoSync;
+  instantiate(resultOptions).onLoad({ source: 'dev' });
+  assert.equal(store().countRecords(), 0);
+});
+
+test('开发及体验版本仍可使用明确标注的测试入口', () => {
+  for (const envVersion of ['develop', 'trial']) {
+    createWx({ envVersion });
+    const page = instantiate(resultOptions);
+    page.onLoad({ source: 'dev' });
+    assert.equal(page.data.isDev, true);
+    assert.equal(page.data.savedState, 'saved');
+  }
+});
+
+test('查看开发样例不会清除另一份尚未保存的真实结果', () => {
+  createWx();
+  const real = { ...fixture.buildDevResult(), practiceId: 'real-pending', isDevData: false };
+  session.setPendingResult(real);
+  instantiate(resultOptions).onLoad({ source: 'dev' });
+  assert.equal(session.peekPendingResult().practiceId, 'real-pending');
+  instantiate(resultOptions).onLoad({});
+  assert.equal(session.peekPendingResult(), null);
+  assert.equal(store().getRecord('real-pending').ok, true);
+});
+
+test('旧页面重试保存不能清除新一轮待保存结果', () => {
+  const api = createWx({ failWrite: true });
+  session.setPendingResult({ ...fixture.buildDevResult(), practiceId: 'first', isDevData: false });
+  const page = instantiate(resultOptions);
+  page.onLoad({});
+  session.setPendingResult({ ...fixture.buildDevResult(), practiceId: 'second', isDevData: false });
+  api.setStorageSync = (key, value) => api._store.set(key, clone(value));
+  page.onSaveTap();
+  assert.equal(page.data.savedState, 'saved');
+  assert.equal(session.peekPendingResult().practiceId, 'second');
+});
+
+test('损坏的存储不能被当成空历史覆盖', () => {
+  for (const damaged of [{ old: 'keep' }, false, 42, [null], [{ id: 'broken', items: null }]]) {
+    const api = createWx();
+    api._store.set(store().STORAGE_KEY, clone(damaged));
+    assert.equal(store().loadRecords().ok, false);
+    assert.equal(store().saveRecord(fixture.buildDevResult()).ok, false);
+    assert.deepEqual(api._store.get(store().STORAGE_KEY), damaged);
+  }
+});
+
+test('未知结构版本保留原数据并提示读取失败', () => {
+  const api = createWx();
+  const record = store().buildRecord(fixture.buildDevResult());
+  record.schemaVersion = 999;
+  api._store.set(store().STORAGE_KEY, [record]);
+  assert.equal(store().loadRecords().ok, false);
+  assert.equal(store().saveRecord(fixture.buildDevResult()).ok, false);
+  assert.equal(api._store.get(store().STORAGE_KEY)[0].schemaVersion, 999);
+});
+
+test('同编号不同内容不能伪装为保存成功', () => {
+  createWx();
+  store().saveRecord(fixture.buildDevResult());
+  const changed = fixture.buildDevResult();
+  changed.items[1].userAnswer = '4';
+  changed.items[1].status = 'correct';
+  const saved = store().saveRecord(changed);
+  assert.equal(saved.ok, false);
+  assert.match(saved.error, /编号|不一致|不同/);
+  assert.equal(store().getRecord(changed.practiceId).record.summary.correct, 2);
+});
+
+test('清除被存储接口吞掉时不提示清除成功', () => {
+  const api = createWx({ swallowRemove: true });
+  store().saveRecord(fixture.buildDevResult());
+  assert.equal(store().clearRecords().ok, false);
+  const page = instantiate(historyOptions);
+  page.onShow();
+  page.onClear();
+  assert.equal(api.calls.some(call => call.type === 'toast' && call.title === '已清除'), false);
+  assert.equal(store().countRecords(), 1);
+});
+
+test('历史详情不重新计算空摘要也不复活已清除的记录', () => {
+  createWx();
+  const input = fixture.buildDevResult();
+  input.config = { grade: 1, ruleId: 'g1_add_20', count: 10, mode: 'normal', durationSeconds: 60 };
+  input.configText = '';
+  store().saveRecord(input);
+  const page = instantiate(resultOptions);
+  page.onLoad({ id: input.practiceId });
+  assert.equal(page.data.configText, '');
+  store().clearRecords();
+  page.onSaveTap();
+  assert.equal(store().countRecords(), 0);
+});
+
+test('默认规则版本与后端契约一致，显式旧版本不改写', () => {
+  createWx();
+  const contract = require('../miniapp/cloudfunctions/roomService/rules.generated.json');
+  assert.equal(store().buildRecord(fixture.buildDevResult()).ruleVersion, contract.ruleVersion);
+  assert.equal(store().buildRecord({ ...fixture.buildDevResult(), ruleVersion: 'old-rule' }).ruleVersion, 'old-rule');
+});
+
+test('不可序列化的原题不能静默丢失', () => {
+  createWx();
+  const input = fixture.buildDevResult();
+  input.items[0].question = { kind: 'test' };
+  input.items[0].question.self = input.items[0].question;
+  assert.equal(store().saveRecord(input).ok, false);
+  assert.equal(store().countRecords(), 0);
+});
+
+test('写入后内容被改变时不能仅凭编号认定保存成功', () => {
+  const api = createWx();
+  api.setStorageSync = (key, values) => {
+    const altered = clone(values);
+    altered[0].items[0].expression = '另一道题';
+    api._store.set(key, altered);
+  };
+  assert.equal(store().saveRecord(fixture.buildDevResult()).ok, false);
+});
 
 // ---------- 统计口径 ----------
 test('开发测试数据：4 题、2 正确、1 错误、1 未答、正确率 50.0%', () => {

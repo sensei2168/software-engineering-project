@@ -17,6 +17,17 @@
 // ruleId 置为 null：这组数据混合加减法，不冒充某个具体题型规则。
 
 const DEV_PRACTICE_ID = 'dev-fixture-0001';
+const { RULE_VERSION } = require('./practice-rules');
+
+// 与后端联调页一致：只允许开发版／体验版，版本未知时不开放。
+function canUseDevResult() {
+  try {
+    const info = wx.getAccountInfoSync();
+    return !!info.miniProgram && ['develop', 'trial'].includes(info.miniProgram.envVersion);
+  } catch (_) {
+    return false;
+  }
+}
 
 function buildDevResult() {
   return {
@@ -38,7 +49,7 @@ const DECIMAL_FRACTION_SAMPLE = {
   practiceId: 'dev-precise-0001',
   isDevData: true,
   ruleId: 'g3_decimal_1place',
-  ruleVersion: 'v2',
+  ruleVersion: RULE_VERSION,
   config: null,
   items: [
     { expression: '1.2 ＋ 0.5 ＝ ?', userAnswer: '1.7', correctAnswer: '1.7', status: 'correct' },
@@ -55,4 +66,4 @@ const DECIMAL_FRACTION_SAMPLE = {
 
 const EXPECTED = { total: 4, correct: 2, wrong: 1, unanswered: 1, accuracyText: '50.0%' };
 
-module.exports = { DEV_PRACTICE_ID, EXPECTED, DECIMAL_FRACTION_SAMPLE, buildDevResult };
+module.exports = { DEV_PRACTICE_ID, EXPECTED, DECIMAL_FRACTION_SAMPLE, buildDevResult, canUseDevResult };

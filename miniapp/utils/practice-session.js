@@ -16,8 +16,13 @@ function peekPendingResult() {
   return pendingResult;
 }
 
-function clearPendingResult() {
+function clearPendingResult(expectedId) {
+  if (expectedId !== undefined) {
+    const currentId = pendingResult && (pendingResult.practiceId || pendingResult.id);
+    if (typeof currentId !== 'string' || currentId.trim() !== expectedId) return false;
+  }
   pendingResult = null;
+  return true;
 }
 
 module.exports = { setPendingResult, peekPendingResult, clearPendingResult };

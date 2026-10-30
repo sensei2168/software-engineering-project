@@ -1,5 +1,6 @@
 const { loadRecords, clearRecords } = require('../../utils/record-store');
 const { openPage } = require('../../utils/navigation');
+const { canUseDevResult } = require('../../utils/dev-result-fixture');
 
 // 练习记录页：读取本机保存的练习记录，点击可看详情。
 // 每次显示都重新读存储，所以关闭小程序再打开也能看到已保存记录。
@@ -10,11 +11,13 @@ Page({
     records: [],
     count: 0,
     empty: true,
+    devAllowed: false,
     error: ''
   },
 
   // 用 onShow 而不是 onLoad：从详情页返回、清除记录后回到本页都要刷新
   onShow() {
+    this.setData({ devAllowed: canUseDevResult() });
     this.refresh();
   },
 
@@ -55,8 +58,9 @@ Page({
   },
 
   // 开发验证用：批改模块接入前，用测试数据看结果页。
-  // 产生的是带「开发测试」标记的记录，正式交付前删除此入口和方法。
+  // 仅开发版／体验版可见，路由入口也再次校验版本。
   onViewDevResult() {
+    if (!canUseDevResult()) return;
     openPage('/pages/result/result?source=dev');
   },
 

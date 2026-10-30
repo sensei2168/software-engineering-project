@@ -3,7 +3,7 @@ const { saveRecord, getRecord } = require('../../utils/record-store');
 const { peekPendingResult, clearPendingResult } = require('../../utils/practice-session');
 const { toQuery, getConfigDisplay } = require('../../utils/practice-config');
 const { openPage } = require('../../utils/navigation');
-const { buildDevResult } = require('../../utils/dev-result-fixture');
+const { buildDevResult, canUseDevResult } = require('../../utils/dev-result-fixture');
 
 // 结果页：展示一次练习的批改结果，并保存成一条本地记录。
 //
@@ -36,6 +36,7 @@ Page({
   data: {
     mode: 'empty',      // empty 无结果 | preview 本次结果 | detail 历史详情
     isDev: false,
+    devAllowed: false,
     summary: null,
     rows: [],
     metaText: '',
@@ -47,6 +48,7 @@ Page({
 
   onLoad(options) {
     const query = options || {};
+    this.setData({ devAllowed: canUseDevResult() });
 
     if (query.id) {
       let id = query.id;
@@ -60,7 +62,7 @@ Page({
     }
 
     if (query.source === 'dev') {
-      this.renderResult(buildDevResult(), 'preview');
+      this.onUseDevData();
       return;
     }
 
@@ -98,7 +100,7 @@ Page({
 
     // 详情页优先使用保存时的摘要快照，避免用当前规则表改写旧记录
     const configText = mode === 'detail'
-      ? (input.configText || configTextOf(input.config))
+      ? (typeof input.configText === 'string' ? input.configText : '')
       : configTextOf(input.config);
 
     this.setData({
@@ -125,6 +127,7 @@ Page({
   saveNow(silent) {
     if (this.saving) return;
     if (!this.current) return;
+    if (this.data.mode !== 'preview') return;
 
     this.saving = true;
     this.setData({ savedState: 'saving', savedText: '正在保存…' });
@@ -135,7 +138,7 @@ Page({
     if (result.ok) {
       // 保存成功后改用落库的记录（带 id 与保存时间）
       this.current = result.record;
-      clearPendingResult();
+      clearPendingResult(result.record.id);
       this.setData({
         savedState: result.deduped ? 'deduped' : 'saved',
         savedText: result.deduped ? '该次练习已保存过，没有重复记录' : '已保存到本机练习记录'
@@ -158,6 +161,10 @@ Page({
 
   // 无结果时用开发测试数据预览页面
   onUseDevData() {
+    if (!canUseDevResult()) {
+      this.setData({ mode: 'empty', devAllowed: false, error: '当前版本不提供开发测试数据' });
+      return;
+    }
     this.renderResult(buildDevResult(), 'preview');
   },
 

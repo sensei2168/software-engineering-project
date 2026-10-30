@@ -13,8 +13,8 @@
     <view class="card">
       <view class="card-title">还没有可显示的结果</view>
       <view class="note">完成一次练习并提交后，这里会显示总题数、正确、错误、未答和正确率，以及每道题的作答情况。目前答题与批改功能尚未接入。</view>
-      <button class="secondary" bindtap="onUseDevData">用开发测试数据查看页面效果</button>
-      <view class="dev-hint">开发测试数据只用于验证页面，不代表真实练习结果。</view>
+      <button wx:if="{{devAllowed}}" class="secondary" bindtap="onUseDevData">用开发测试数据查看页面效果</button>
+      <view wx:if="{{devAllowed}}" class="dev-hint">开发测试数据只用于验证页面，不代表真实练习结果。</view>
     </view>
 
     <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
@@ -77,7 +77,7 @@
     <view class="save-bar {{savedState}}">
       <view class="save-text">{{savedText}}</view>
       <view wx:if="{{savedState === 'failed'}}" class="save-action" bindtap="onSaveTap">重试保存</view>
-      <view wx:elif="{{savedState === 'saved' || savedState === 'deduped'}}" class="save-action" bindtap="onSaveTap">再次保存</view>
+      <view wx:elif="{{mode === 'preview' && (savedState === 'saved' || savedState === 'deduped')}}" class="save-action" bindtap="onSaveTap">再次保存</view>
     </view>
 
     <button class="primary" bindtap="onAgain">再次练习</button>

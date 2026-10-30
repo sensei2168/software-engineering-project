@@ -11,13 +11,12 @@
 // 所有函数返回结果对象而不抛异常，页面据此显示提示。
 
 const { computeSummary, isBlankAnswer, VALID_STATUS } = require('./result-stats');
+const { RULE_VERSION } = require('./practice-rules');
 
 const STORAGE_KEY = 'kousuan_practice_records_v1';
 // 记录结构版本：字段发生变化时递增，便于以后兼容旧记录
 const RECORD_SCHEMA_VERSION = 1;
-// 规则版本：题型表（utils/practice-rules.js）当前的确认版本，
-// 由 docs/07 于 2026-10-27 确认的 V2 预设。规则表变更时应同步更新此值。
-const RULE_VERSION = 'v2';
+// 规则版本统一来自题型目录；明确传入的旧版本不改写。
 // 暂定只保留最近 100 次已提交练习，超出后删除最早的记录
 const MAX_RECORDS = 100;
 
@@ -51,27 +50,49 @@ function readRaw() {
     return { ok: false, error: '读取本地记录失败：' + ((e && e.errMsg) || (e && e.message) || '未知错误') };
   }
 
-  if (!raw) return { ok: true, records: [] };
+  if (raw === '' || raw === undefined || raw === null) return { ok: true, records: [] };
   if (!Array.isArray(raw)) {
-    console.warn('[record-store] 本地记录不是数组，已按空记录处理');
-    return { ok: true, records: [] };
+    return { ok: false, error: '本地记录格式异常，已保留原数据，请勿清除微信数据' };
   }
+  try {
+    const ids = new Set();
+    raw.forEach(function (item) {
+      if (!item || typeof item.id !== 'string' || !item.id.trim() || ids.has(item.id) ||
+          item.schemaVersion !== RECORD_SCHEMA_VERSION || !Number.isFinite(item.createdAt)) {
+        throw new Error('记录结构、编号或版本异常');
+      }
+      ids.add(item.id);
+      const validated = buildRecord(item);
+      if (stableJson(item.summary) !== stableJson(validated.summary)) throw new Error('统计数据不一致');
+    });
+  } catch (_) {
+    return { ok: false, error: '本地记录损坏或版本不兼容，已保留原数据' };
+  }
+  return { ok: true, records: raw };
+}
 
-  return {
-    ok: true,
-    records: raw.filter(function (item) {
-      return item && typeof item.id === 'string' && item.id;
-    })
-  };
+function stableJson(value) {
+  if (Array.isArray(value)) return '[' + value.map(stableJson).join(',') + ']';
+  if (value && typeof value === 'object') {
+    return '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + stableJson(value[key])).join(',') + '}';
+  }
+  return JSON.stringify(value);
+}
+
+function sameContent(a, b) {
+  // 重试可能重新取得保存时间，但同一练习的题目、答案和配置不能改变。
+  const fields = ['id', 'schemaVersion', 'ruleId', 'ruleVersion', 'configText', 'config', 'isDevData', 'items', 'summary'];
+  return fields.every(key => stableJson(a[key]) === stableJson(b[key]));
 }
 
 // 结构化原题快照：只保留可 JSON 化的数据，避免把页面对象写进存储
 function snapshotQuestion(question) {
-  if (!question || typeof question !== 'object') return null;
+  if (question === null || question === undefined) return null;
+  if (typeof question !== 'object') throw new Error('原题快照必须是对象');
   try {
     return JSON.parse(JSON.stringify(question));
   } catch (e) {
-    return null;
+    throw new Error('原题快照无法保存，请检查题目数据');
   }
 }
 
@@ -79,7 +100,7 @@ function snapshotQuestion(question) {
 function buildRecord(input) {
   if (!input || typeof input !== 'object') throw new Error('记录内容为空');
 
-  // 新结果用 practiceId；已保存的记录只有 id，详情页再次保存时要能沿用同一编号
+  // 新结果用 practiceId；保存成功后的预览重试只有 id，仍沿用同一编号
   const practiceId = (typeof input.practiceId === 'string' && input.practiceId.trim() !== '')
     ? input.practiceId
     : input.id;
@@ -117,7 +138,7 @@ function buildRecord(input) {
     ? input.createdAt
     : Date.now();
 
-  const config = input.config || null;
+  const config = snapshotQuestion(input.config);
   const ruleId = (typeof input.ruleId === 'string' && input.ruleId)
     ? input.ruleId
     : (config && typeof config.ruleId === 'string' ? config.ruleId : null);
@@ -157,6 +178,7 @@ function saveRecord(input) {
   // 幂等：同一次练习已存在时直接返回旧记录，不追加
   const existing = read.records.filter(function (item) { return item.id === record.id; })[0];
   if (existing) {
+    if (!sameContent(existing, record)) return { ok: false, error: '同一练习编号已有不同内容，已保留原记录，请检查提交数据' };
     return { ok: true, deduped: true, record: existing, message: '该次练习已保存过，未重复写入' };
   }
 
@@ -176,6 +198,7 @@ function saveRecord(input) {
   if (!verify.ok) return { ok: false, error: '保存后校验失败：' + verify.error };
   const saved = verify.records.filter(function (item) { return item.id === record.id; })[0];
   if (!saved) return { ok: false, error: '保存未生效，本地未找到这条记录' };
+  if (stableJson(saved) !== stableJson(record)) return { ok: false, error: '保存后内容校验不一致，请重试或检查本机存储' };
 
   return { ok: true, deduped: false, record: saved };
 }
@@ -209,6 +232,8 @@ function clearRecords() {
   } catch (e) {
     return { ok: false, error: '清除记录失败：' + ((e && e.errMsg) || (e && e.message) || '未知错误') };
   }
+  const verify = readRaw();
+  if (!verify.ok || verify.records.length !== 0) return { ok: false, error: '清除后校验失败，不能确认记录已删除，请重试' };
   return { ok: true };
 }
 
