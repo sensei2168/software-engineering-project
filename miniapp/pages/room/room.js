@@ -1,7 +1,7 @@
 const { createRoomClient } = require('../../utils/room-client');
 const { createMockRoomClient } = require('../../utils/mock-room-client');
 const { roomConfig, configSummary, viewRoom, roomError } = require('../../utils/room-view');
-const { GRADES, getRule, getRulesForGrade } = require('../../utils/practice-rules');
+const { GRADES, getRule, getRulesForGrade, getGradeLabel } = require('../../utils/practice-rules');
 const { DURATIONS } = require('../../utils/practice-config');
 const { envId } = require('../../config/cloud');
 const LAST_ROOM = 'room-p2.last-room.' + envId;
@@ -70,8 +70,11 @@ Page({
   setRoom(room, serverNow) {
     const view = viewRoom(room, this.data.source === 'demo');
     if (this.data.room && this.data.room.roomId === room.roomId && this.data.room.version > room.version) return;
+    const sameMembersView = ['waiting', 'ready', 'both'].includes(this.data.stage) && ['waiting', 'ready', 'both'].includes(view.stage);
+    const changedView = this.data.stage !== view.stage && !sameMembersView;
     this._roomId = room.roomId; this._offset = serverNow - Date.now();
     this.setData({ room, ...view, error: '', editConfig: false });
+    if (changedView) this.scrollToTop();
     this.startClock();
   },
   applyError(error) {
@@ -83,6 +86,7 @@ Page({
       if (this.data.source === 'live') { try { wx.removeStorageSync(LAST_ROOM); } catch (_) {} }
     }
     this.stopClock(); this.setData(patch);
+    if (patch.stage) this.scrollToTop();
   },
   async perform(operation, successNotice = '') {
     if (!this._alive || this._busy) return;
@@ -137,6 +141,7 @@ Page({
     }
     this._roomId = ''; this.stopClock();
     this.setData({ stage, entry: stage, room: null, slots: [], summary: '', error: '', notice: '', inputError: '' });
+    this.scrollToTop();
   },
   inputRoomCode(event) { this.setData({ inputCode: String(event.detail.value), inputError: '' }); },
   joinRoom() {
@@ -184,22 +189,31 @@ Page({
   toggleConfig() {
     if (!this._busy && !this.data.pendingAction && !this.data.room) this.setData({ editConfig: !this.data.editConfig, configError: '' });
   },
+  updateConfigPreview() {
+    const text = this.data.countText.trim(), count = Number(text);
+    const countLabel = /^\d+$/.test(text) && count >= 10 && count <= 50 ? count + ' 道' : '题量待确认';
+    this.setData({ configSummary: [getGradeLabel(this.data.config.grade), getRule(this.data.config.ruleId).label,
+      countLabel, this.data.config.durationSeconds + ' 秒'].join(' · ') });
+  },
   chooseGrade(event) {
     const grade = Number(event.currentTarget.dataset.value), rules = getRulesForGrade(grade);
     if (!rules.length) return;
     const previous = getRule(this.data.config.ruleId), rule = rules.find(item => item.operation === previous.operation) || rules[0];
     this.setData({ config: { ...this.data.config, grade, ruleId: rule.id }, ruleChoices: rules,
       ruleIndex: rules.findIndex(item => item.id === rule.id), configError: '' });
+    this.updateConfigPreview();
   },
   chooseRule(event) {
     const ruleIndex = Number(event.detail.value), rule = this.data.ruleChoices[ruleIndex];
     if (rule) this.setData({ config: { ...this.data.config, ruleId: rule.id }, ruleIndex, configError: '' });
+    this.updateConfigPreview();
   },
   chooseDuration(event) {
     const durationSeconds = Number(event.currentTarget.dataset.value);
     if (DURATIONS.includes(durationSeconds)) this.setData({ config: { ...this.data.config, durationSeconds }, configError: '' });
+    this.updateConfigPreview();
   },
-  inputCount(event) { this.setData({ countText: String(event.detail.value), configError: '' }); },
+  inputCount(event) { this.setData({ countText: String(event.detail.value), configError: '' }); this.updateConfigPreview(); },
   readConfig() {
     const text = this.data.countText.trim(), checked = /^\d+$/.test(text) && roomConfig({ ...this.data.config, count: Number(text) });
     if (!checked || !checked.ok) {
@@ -231,11 +245,30 @@ Page({
       fail: () => { if (this._alive) this.setData({ error: '未能复制，请长按上方房间码复制。' }); }
     });
   },
+  endDemo() {
+    if (this.data.source !== 'demo' || !this.data.allowDemo || this._busy || this._confirming || this.data.pendingAction) return;
+    const epoch = this._epoch; this._confirming = true;
+    wx.showModal({ title: '结束本次模拟演示？', content: '只清除本机模拟房间，真实房间不受影响。',
+      success: result => {
+        if (!this._alive || epoch !== this._epoch) return;
+        this._confirming = false;
+        if (!result.confirm) return;
+        try {
+          this.getClient().reset(); this._roomId = ''; this.stopClock();
+          this.setData({ room: null, slots: [], summary: '', stage: 'create', entry: 'create', error: '', notice: '模拟演示已结束，可以重新创建或加入。' });
+          this.scrollToTop();
+        } catch (error) { this.applyError(error); }
+      }, fail: () => { this._confirming = false; }
+    });
+  },
   onShareAppMessage() {
     const room = this.data.room;
     return this.data.source === 'live' && room && room.status === 'waiting'
       ? { title: '口算小搭档：邀请你参加双人小比赛', path: '/pages/room/room?code=' + room.code }
       : { title: '口算小搭档', path: '/pages/home/home' };
+  },
+  scrollToTop() {
+    if (this._visible && typeof wx.pageScrollTo === 'function') wx.pageScrollTo({ scrollTop: 0, duration: 0 });
   },
   stopClock() { if (this._clock !== null) clearInterval(this._clock); this._clock = null; },
   startClock() {

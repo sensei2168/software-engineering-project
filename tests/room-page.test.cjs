@@ -142,3 +142,22 @@ test('storage failure prevents real writes and invitation links only prefill joi
   assert.equal(p.data.stage, 'join'); assert.equal(p.data.inputCode, '012345'); assert.equal(s.requests.length, 0);
   s.state.storageFailure = true; await p.createRoom(); assert.match(p.data.error, /存储|保存/); assert.equal(s.requests.length, 0);
 });
+test('starting from a scrolled room and showing connection failure bring the new state into view', async () => {
+  const { s, p } = await demo(); await both(s, p); s.scrolls.length = 0;
+  await p.startMatch(); assert.deepEqual(s.scrolls, [0]);
+  s.scrolls.length = 0; await s.demo(p, 'disconnect'); assert.deepEqual(s.scrolls, [0]);
+});
+test('configuration summary follows the visible draft instead of showing the previous grade and count', async () => {
+  const { p } = await demo(); p.toggleConfig(); p.chooseGrade(event(3)); p.chooseRule({ detail: { value: 6 } });
+  p.inputCount({ detail: { value: '20' } }); p.chooseDuration(event(60));
+  assert.equal(p.data.configSummary, '三年级 · 分数加减 · 20 道 · 60 秒');
+  p.inputCount({ detail: { value: '' } }); assert.match(p.data.configSummary, /题量待确认/);
+});
+test('ending an active demo is explicit, does not touch live recovery and permits a fresh run', async () => {
+  const { s, p } = await demo(); s.values.set('room-p2.last-room.' + envId, 'untouched-live-room');
+  await both(s, p); await p.startMatch(); await s.advance(3000); assert.equal(p.data.stage, 'playing');
+  p.endDemo(); await s.confirm(false); assert.equal(p.data.stage, 'playing');
+  p.endDemo(); await s.confirm(true); assert.equal(p.data.stage, 'create'); assert.equal(s.timers(), 0);
+  assert.equal(s.values.get('room-p2.last-room.' + envId), 'untouched-live-room');
+  await both(s, p); await p.startMatch(); assert.equal(p.data.countdown, 3); assert.equal(s.requests.length, 0);
+});

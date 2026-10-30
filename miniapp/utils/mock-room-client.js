@@ -114,6 +114,10 @@ function createMockRoomClient({ wxApi, now = Date.now }) {
       return invoke(copy(state.pending));
     },
     reconnect() { offline = false; },
+    reset() {
+      if (state.pending) fail('PENDING_REQUEST', '请先确认模拟操作，再结束演示');
+      save({ room: null, role: 'host', serial: state.serial + 1, pending: null }); offline = false;
+    },
     async simulate(event) {
       if (event === 'disconnect') { offline = true; fail('CLOUD_CALL_FAILED', '模拟连接中断，原房间不变'); }
       const room = snapshot(), next = copy(state);
