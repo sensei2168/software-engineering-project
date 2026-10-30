@@ -1,1 +1,109 @@
-.settings-return { margin: 0; border-radius: 0; background: transparent; line-height: 1.6; font-weight: 400; }
+/* 答题页：题干大字号、输入框居中；上一题/下一题在输入框下方，交卷按钮再往下。
+   键盘弹起时交卷按钮可能被遮住，收起键盘后即可滚动到并点击。 */
+.practice-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.quiz-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.quiz-progress {
+  color: #597374;
+  font-size: 28rpx;
+}
+
+.quiz-timer {
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #087f79;
+  padding: 4rpx 20rpx;
+  background: #eef7f4;
+  border-radius: 14rpx;
+}
+
+.quiz-timer.urgent {
+  color: #a43426;
+  background: #fdeceb;
+}
+
+.quiz-card {
+  background: #fff;
+  border: 2rpx solid #e3efeb;
+  border-radius: 28rpx;
+  padding: 40rpx 30rpx 32rpx;
+  text-align: center;
+}
+
+.quiz-hint {
+  color: #8aa09d;
+  font-size: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.quiz-question {
+  font-size: 92rpx;
+  font-weight: 700;
+  letter-spacing: 4rpx;
+  line-height: 1.4;
+  color: #183f40;
+  margin-bottom: 24rpx;
+}
+
+.quiz-answer {
+  display: flex;
+  justify-content: center;
+}
+
+.quiz-input {
+  width: 340rpx;
+  height: 120rpx;
+  line-height: 120rpx;
+  text-align: center;
+  font-size: 72rpx;
+  font-weight: 700;
+  color: #087f79;
+  background: #f3f7f5;
+  border-radius: 20rpx;
+  border-bottom: 4rpx solid #cfe3de;
+}
+
+.quiz-placeholder {
+  color: #c3d3d0;
+  font-size: 72rpx;
+}
+
+.quiz-tip {
+  color: #8aa09d;
+  font-size: 24rpx;
+  margin-top: 20rpx;
+}
+
+.quiz-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 26rpx;
+}
+
+.quiz-nav {
+  flex: 1;
+  margin: 0 10rpx;
+}
+
+.quiz-footer {
+  margin-top: 12rpx;
+  padding-bottom: 40rpx;
+}
+
+.quiz-count {
+  text-align: center;
+  color: #597374;
+  font-size: 26rpx;
+  margin-bottom: 8rpx;
+}
