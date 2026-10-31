@@ -101,3 +101,56 @@ test('lost start and cancel responses preserve batch and request IDs across clie
   assert.equal(cancelled.data.room.status, 'waiting'); assert.equal(cancelled.data.operation.replayed, true);
   assert.equal(s.calls.at(-1).data.requestId, cancelRequest.requestId); assert.equal(client.pending(), null);
 });
+
+function holdResponse(s, selectedCall) {
+  const original = s.wxApi.cloud.callFunction;
+  let release, arrived;
+  const gate = new Promise(resolve => { release = resolve; });
+  const reached = new Promise(resolve => { arrived = resolve; });
+  let count = 0;
+  s.wxApi.cloud.callFunction = async options => {
+    const index = ++count;
+    const response = await original(options);
+    if (index === selectedCall) { arrived(); await gate; }
+    return response;
+  };
+  return { release, reached };
+}
+
+test('late response from an earlier client cannot clear a newer pending write', async () => {
+  const s = setup(), first = holdResponse(s, 1);
+  const oldCall = s.client().call('create', { config: s.f.config });
+  await first.reached;
+  await s.client().retryPending();
+  const next = holdResponse(s, 1), client = s.client();
+  const newCall = client.call('create', { config: s.f.config });
+  await next.reached;
+  const pending = client.pending();
+  first.release(); await assert.rejects(oldCall, { code: 'STALE_RESPONSE' });
+  assert.deepEqual(client.pending(), pending);
+  next.release(); const response = await newCall;
+  assert.equal(client.pending(), null);
+  assert.equal(s.values.get('room-p2.last-room.' + envId), response.data.room.roomId);
+});
+
+test('late create response cannot overwrite the newer confirmed recovery room', async () => {
+  const s = setup(), held = holdResponse(s, 1);
+  const oldCall = s.client().call('create', { config: s.f.config });
+  await held.reached;
+  await s.client().retryPending();
+  const current = await s.client().call('create', { config: s.f.config });
+  held.release(); await assert.rejects(oldCall, { code: 'STALE_RESPONSE' });
+  assert.equal(s.values.get('room-p2.last-room.' + envId), current.data.room.roomId);
+});
+
+test('late leave response cannot erase the newer confirmed recovery room', async () => {
+  const s = setup(), client = s.client();
+  const room = (await client.call('create', { config: s.f.config })).data.room;
+  const held = holdResponse(s, 1);
+  const oldCall = client.call('leave', { roomId: room.roomId, expectedVersion: room.version });
+  await held.reached;
+  await s.client().retryPending();
+  const current = await s.client().call('create', { config: s.f.config });
+  held.release(); await assert.rejects(oldCall, { code: 'STALE_RESPONSE' });
+  assert.equal(s.values.get('room-p2.last-room.' + envId), current.data.room.roomId);
+});

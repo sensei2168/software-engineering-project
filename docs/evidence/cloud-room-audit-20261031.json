@@ -1,0 +1,47 @@
+{
+  "startedAt": "2026-10-31T07:01:59.355Z",
+  "environmentId": "cloud1-d6gvp9cql29a1164e",
+  "scope": "single-real-account-concurrent-requests",
+  "cases": [
+    {
+      "name": "expected-deployment",
+      "passed": true
+    },
+    {
+      "name": "concurrent-identical-create",
+      "passed": true
+    },
+    {
+      "name": "same-request-recovery",
+      "passed": true
+    },
+    {
+      "name": "changed-payload-rejected",
+      "passed": true
+    },
+    {
+      "name": "same-identity-single-seat",
+      "passed": true
+    },
+    {
+      "name": "single-member-cannot-start",
+      "passed": true
+    },
+    {
+      "name": "client-score-rejected",
+      "passed": true
+    },
+    {
+      "name": "competing-close",
+      "passed": true
+    },
+    {
+      "name": "repeat-close",
+      "passed": true
+    }
+  ],
+  "transientRetries": 2,
+  "cleanup": "closed",
+  "finishedAt": "2026-10-31T07:02:11.131Z",
+  "passed": true
+}
