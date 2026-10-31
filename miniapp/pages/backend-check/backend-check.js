@@ -6,7 +6,8 @@ const LAST_ROOM = 'room-p2.last-room.';
 // 这是开发联调入口，不连接模拟后端，也不放到家长／学生首页。
 Page({
   data: { allowed: false, envId: DEFAULT_ENV_ID, code: '', lookupRoomId: '', identity: null, room: null,
-    busy: false, error: '', message: '', pendingAction: '', serverTime: '', selfReady: false },
+    busy: false, error: '', message: '', pendingAction: '', serverTime: '', selfReady: false,
+    canStart: false, canCancelStart: false, startTime: '', endTime: '' },
   onLoad() {
     const info = wx.getAccountInfoSync();
     const allowed = ['develop', 'trial'].includes(info.miniProgram && info.miniProgram.envVersion);
@@ -40,10 +41,17 @@ Page({
       if (data.room) {
         patch.room = data.room; patch.lookupRoomId = data.room.roomId;
         const own = data.room.members.find(item => item.isSelf); patch.selfReady = !!(own && own.ready);
+        const capabilities = data.room.capabilities || {};
+        patch.canStart = !!capabilities.start && data.room.status === 'waiting' && data.room.selfRole === 'host' &&
+          data.room.members.length === 2 && data.room.members.every(item => item.ready);
+        patch.canCancelStart = !!capabilities.cancelStart && data.room.status === 'countdown';
+        patch.startTime = data.room.startAt ? new Date(data.room.startAt).toISOString() : '';
+        patch.endTime = data.room.endAt ? new Date(data.room.endAt).toISOString() : '';
         if (data.operation && data.operation.replayed) patch.message = '已确认原操作，未重复创建或写入；下方为当前房间状态';
       }
       if (data.left) {
         patch.room = null; patch.lookupRoomId = ''; patch.selfReady = false;
+        patch.canStart = false; patch.canCancelStart = false;
         patch.message = data.closed ? '已退出并关闭房间' : '已退出房间';
       }
       this.setData(patch);
@@ -68,13 +76,25 @@ Page({
       expectedVersion: this.data.room.version, ready: !this.data.selfReady }));
   },
   retryOperation() { return this.perform(client => client.retryPending()); },
+  startMatch() {
+    if (!this.data.room || !this.data.canStart) return;
+    const room = this.data.room;
+    return this.perform(client => client.call('start', { roomId: room.roomId, expectedVersion: room.version }));
+  },
+  cancelMatchStart() {
+    if (!this.data.room || !this.data.canCancelStart) return;
+    const room = this.data.room;
+    return this.perform(client => client.call('cancelStart', { roomId: room.roomId,
+      expectedVersion: room.version, attemptId: room.attemptId }));
+  },
   leaveRoom() {
     if (!this.data.room || this.data.busy) return;
     const room = this.data.room;
-    wx.showModal({ title: room.selfRole === 'host' ? '退出并关闭测试房间？' : '退出测试房间？',
-      content: room.selfRole === 'host' ? '另一位成员也将无法继续准备。' : '退出后将释放你的席位。',
+    const closing = room.selfRole === 'host' || room.status === 'countdown';
+    wx.showModal({ title: closing ? '退出并关闭测试房间？' : '退出测试房间？',
+      content: closing ? '这会关闭房间。只想取消倒计时并留房，请使用“取消开始”。' : '退出后将释放你的席位。',
       success: result => { if (result.confirm) this.perform(client => client.call('leave', {
-        roomId: room.roomId, expectedVersion: room.version })); }
+        roomId: room.roomId, expectedVersion: room.version, ...(room.attemptId ? { attemptId: room.attemptId } : {}) })); }
     });
   }
 });

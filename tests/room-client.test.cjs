@@ -81,3 +81,23 @@ test('confirmed leave clears the stored recovery room', async () => {
   await client.call('leave', { roomId: room.roomId, expectedVersion: room.version });
   assert.equal(s.values.has('room-p2.last-room.' + envId), false); assert.equal(client.pending(), null);
 });
+
+test('lost start and cancel responses preserve batch and request IDs across client recreation', async () => {
+  const s = setup(), client = s.client();
+  let room = (await client.call('create', { config: s.f.config })).data.room;
+  room = (await s.f.call('b', 'join', { code: room.code })).data.room;
+  room = (await client.call('setReady', { roomId: room.roomId, expectedVersion: room.version, ready: true })).data.room;
+  room = (await s.f.call('b', 'setReady', { roomId: room.roomId, expectedVersion: room.version, ready: true })).data.room;
+  s.state.drop = true;
+  await assert.rejects(client.call('start', { roomId: room.roomId, expectedVersion: room.version }), { code: 'CLOUD_CALL_FAILED' });
+  const startRequest = client.pending(); assert.equal(startRequest.action, 'start');
+  const active = (await s.client().retryPending()).data.room;
+  assert.equal(active.status, 'countdown'); assert.equal(s.calls.at(-1).data.requestId, startRequest.requestId);
+  s.state.drop = true;
+  await assert.rejects(client.call('cancelStart', { roomId: active.roomId, expectedVersion: active.version,
+    attemptId: active.attemptId }), { code: 'CLOUD_CALL_FAILED' });
+  const cancelRequest = client.pending(); assert.equal(cancelRequest.payload.attemptId, active.attemptId);
+  const cancelled = await s.client().retryPending();
+  assert.equal(cancelled.data.room.status, 'waiting'); assert.equal(cancelled.data.operation.replayed, true);
+  assert.equal(s.calls.at(-1).data.requestId, cancelRequest.requestId); assert.equal(client.pending(), null);
+});

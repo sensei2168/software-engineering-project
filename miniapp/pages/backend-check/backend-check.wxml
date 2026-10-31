@@ -5,7 +5,7 @@
   </view>
   <block wx:else>
     <view class="title">共同后端验证</view>
-    <view class="note intro">仅验证真实身份、共享房间和权限。不会生成题目、开赛或判分；调用失败不会切换为模拟成功。</view>
+    <view class="note intro">验证身份、共享房间、真实出题和开赛／取消。当前尚不能提交比赛答案或结算；到时显示 awaiting_result 不代表已完成比赛。</view>
     <view class="card">
       <view class="label">共同测试环境 ID</view>
       <input class="number-input" value="{{envId}}" bindinput="inputEnv" disabled="{{busy}}" maxlength="101" placeholder="填写云开发环境 ID，不是 AppID" />
@@ -17,7 +17,7 @@
     </view>
     <view class="card">
       <view class="card-title">创建或加入</view>
-      <view class="note">固定测试配置：一年级加法 · 10 题 · 60 秒。当前只保存配置，不开始答题。</view>
+      <view class="note">固定测试配置：一年级加法 · 10 题 · 60 秒。双方准备后由房主开始，服务端统一倒计时 3 秒。</view>
       <button class="primary" bindtap="createTestRoom" disabled="{{busy || !!pendingAction}}">创建测试房间</button>
       <input class="number-input code-field" value="{{code}}" bindinput="inputCode" disabled="{{busy}}" type="number" maxlength="6" placeholder="另一账号输入 6 位房间码" />
       <button class="secondary" bindtap="joinRoom" disabled="{{busy || !!pendingAction}}">加入测试房间</button>
@@ -33,7 +33,15 @@
         <view>成员：{{room.members.length}} / 2</view>
         <view wx:for="{{room.members}}" wx:key="role">{{item.isSelf ? '我' : '伙伴'}} · {{item.role === 'host' ? '房主' : '加入者'}} · {{item.ready ? '已准备' : '未准备'}}</view>
         <button class="secondary" bindtap="toggleReady" disabled="{{busy || !!pendingAction || room.status !== 'waiting' || room.members.length !== 2}}">{{selfReady ? '取消准备' : '我准备好了'}}</button>
-        <button class="secondary" bindtap="leaveRoom" disabled="{{busy || !!pendingAction || room.status !== 'waiting'}}">退出测试房间</button>
+        <button class="primary" bindtap="startMatch" disabled="{{busy || !!pendingAction || !canStart}}">房主开始测试</button>
+        <button class="secondary" bindtap="cancelMatchStart" disabled="{{busy || !!pendingAction || !canCancelStart}}">取消开始（留在原房间）</button>
+        <view wx:if="{{room.attemptId}}">批次：<text selectable="true" class="identifier">{{room.attemptId}}</text></view>
+        <view wx:if="{{startTime}}">统一开始（UTC）：{{startTime}}</view>
+        <view wx:if="{{endTime}}">统一截止（UTC）：{{endTime}}</view>
+        <view class="note">此联调页手动刷新；倒计时是否已结束以服务端判断为准。正式页面由组员接入自动刷新。</view>
+        <view wx:if="{{room.questions.length}}">题目共 {{room.questions.length}} 道（不含标准答案）</view>
+        <view wx:for="{{room.questions}}" wx:for-item="question" wx:key="id">{{question.index}}. {{question.text}}</view>
+        <button class="secondary" bindtap="leaveRoom" disabled="{{busy || !!pendingAction || (room.status !== 'waiting' && room.status !== 'countdown')}}">退出测试房间</button>
       </view>
     </view>
     <view wx:if="{{pendingAction}}" class="card">

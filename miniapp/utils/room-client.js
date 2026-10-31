@@ -1,5 +1,5 @@
 const { envId: DEFAULT_ENV_ID } = require('../config/cloud');
-const WRITE_ACTIONS = ['create', 'join', 'setReady', 'leave'];
+const WRITE_ACTIONS = ['create', 'join', 'setReady', 'leave', 'start', 'cancelStart'];
 function problem(code, message) { const error = new Error(message); error.code = code; return error; }
 function createRoomClient({ wxApi, envId = DEFAULT_ENV_ID, makeRequestId = () => 'req-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2) }) {
   if (typeof envId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9-]{2,100}$/.test(envId) || /^wx[0-9a-f]{16}$/i.test(envId)) {
