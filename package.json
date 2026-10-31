@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "test:room": "node --test tests/room-service.test.cjs tests/room-client.test.cjs tests/room-store.test.cjs tests/backend-check.test.cjs",
+    "test:room": "node --test tests/room-service.test.cjs tests/room-start.test.cjs tests/room-questions.test.cjs tests/room-client.test.cjs tests/room-store.test.cjs tests/backend-check.test.cjs",
     "check:room-contract": "node scripts/sync-room-contract.cjs --check",
     "sync:room-contract": "node scripts/sync-room-contract.cjs"
   }

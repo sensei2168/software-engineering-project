@@ -1,5 +1,5 @@
 const { envId: DEFAULT_ENV_ID } = require('../config/cloud');
-const WRITE_ACTIONS = ['create', 'join', 'setReady', 'leave'];
+const WRITE_ACTIONS = ['create', 'join', 'setReady', 'leave', 'start', 'cancelStart'];
 function problem(code, message) { const error = new Error(message); error.code = code; return error; }
 function createRoomClient({ wxApi, envId = DEFAULT_ENV_ID, makeRequestId = () => 'req-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2) }) {
   if (typeof envId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9-]{2,100}$/.test(envId) || /^wx[0-9a-f]{16}$/i.test(envId)) {
@@ -29,6 +29,12 @@ function createRoomClient({ wxApi, envId = DEFAULT_ENV_ID, makeRequestId = () =>
       throw problem('INVALID_RESPONSE', '服务返回格式不正确，请检查云函数版本后重试');
     }
     if (WRITE_ACTIONS.includes(request.action) && (result.ok || result.error.code !== 'SERVICE_UNAVAILABLE')) {
+      // 页面重建或重复重试后，旧响应不能确认新请求，也不能让界面回到旧房间。
+      const current = pending();
+      if (!current || current.requestId !== request.requestId || current.action !== request.action ||
+          JSON.stringify(current.payload) !== JSON.stringify(request.payload)) {
+        throw problem('STALE_RESPONSE', '该操作已由其他请求确认，请刷新当前房间；如有未确认操作，请先重试');
+      }
       // 先保存恢复入口，再清除请求；中途存储失败时仍能用原编号安全重试。
       if (result.ok && result.data.room) storage('setStorageSync', 'room-p2.last-room.' + envId, result.data.room.roomId);
       if (result.ok && result.data.left) storage('removeStorageSync', 'room-p2.last-room.' + envId);
