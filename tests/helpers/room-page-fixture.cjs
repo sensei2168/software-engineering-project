@@ -24,6 +24,7 @@ function roomPageFixture({ envVersion = 'develop', values = new Map(), backend =
       if (state.gate) await state.gate;
       if (state.rejectCloud) throw new Error('offline');
       const result = state.response || await backend.service(data, backend.context(actor));
+      if (state.afterResponse) await state.afterResponse(result, data);
       if (state.loseResponse) { state.loseResponse = false; throw new Error('response lost'); }
       return { result };
     } }

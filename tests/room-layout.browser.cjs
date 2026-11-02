@@ -76,7 +76,16 @@ async function fixtures() {
   await sample('playing', async (s, p) => { await both(s, p); await p.startMatch(); await s.advance(3000); });
   const live = roomPageFixture(), p = live.load(); await live.show(p); await p.createRoom();
   await live.backend.call('b', 'join', { code: p.data.room.code }); await p.refreshRoom(); p.onHide();
-  cases.push(['live-ready', p.data]);
+  cases.push(['live-ready', JSON.parse(JSON.stringify(p.data))]);
+  await live.show(p); await p.toggleReady();
+  await live.backend.call('b', 'setReady', { roomId: p.data.room.roomId, expectedVersion: p.data.room.version, ready: true });
+  await p.refreshRoom(); await p.startMatch();
+  cases.push(['live-countdown', JSON.parse(JSON.stringify(p.data))]);
+  await live.advance(3000);
+  cases.push(['live-playing', JSON.parse(JSON.stringify(p.data))]);
+  await live.advance(120000);
+  cases.push(['live-awaiting-result', JSON.parse(JSON.stringify(p.data))]);
+  p.onUnload();
   return cases;
 }
 function measure() {

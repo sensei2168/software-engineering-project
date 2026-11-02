@@ -47,3 +47,4 @@ page { background: #f5f7fa; color: #192536; font-family: -apple-system, BlinkMac
 .room-demo-tools { margin-top: 40rpx; padding-top: 28rpx; border-top: 2rpx solid #dce2e9; }
 .demo-grid { display: flex; flex-wrap: wrap; margin: 0 -6rpx; }
 .room-page .demo-tool { width: calc(50% - 12rpx); flex: none; margin: 12rpx 6rpx 0; font-size: 23rpx; color: #526173; background: #fff; border-color: #dce2e9; }
+.room-question { padding: 16rpx 0; border-bottom: 1rpx solid #e8ecef; font-size: 32rpx; line-height: 1.5; overflow-wrap: anywhere; }

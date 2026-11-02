@@ -56,3 +56,21 @@ test('template condition expressions are bound, and page is registered outside t
   const home = fs.readFileSync(path.resolve(__dirname, '../miniapp/pages/home/home.wxml'), 'utf8');
   assert.equal(home.includes('backend-check'), false);
 });
+
+test('diagnostic start/cancel follows server state and shows questions only after the shared start', async () => {
+  const { page, f } = load();
+  await page.createTestRoom(); const id = page.data.room.roomId;
+  await f.call('b', 'join', { code: page.data.room.code }); await page.refreshRoom(); await page.toggleReady();
+  let room = page.data.room;
+  await f.call('b', 'setReady', { roomId: id, expectedVersion: room.version, ready: true }); await page.refreshRoom();
+  assert.equal(page.data.canStart, true); await page.startMatch();
+  const attempt = page.data.room.attemptId;
+  assert.equal(page.data.canCancelStart, true); assert.equal(page.data.room.questions.length, 0);
+  await page.cancelMatchStart(); assert.equal(page.data.room.status, 'waiting'); assert.equal(page.data.selfReady, false);
+  await page.toggleReady(); room = page.data.room;
+  await f.call('b', 'setReady', { roomId: id, expectedVersion: room.version, ready: true }); await page.refreshRoom();
+  await page.startMatch(); assert.notEqual(page.data.room.attemptId, attempt);
+  f.advance(3000); await page.refreshRoom();
+  assert.equal(page.data.room.status, 'playing'); assert.equal(page.data.room.questions.length, 10);
+  assert.equal(page.data.canCancelStart, false); assert.equal(page.data.canStart, false);
+});

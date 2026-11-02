@@ -1,7 +1,7 @@
 <view class="room-page">
   <view wx:if="{{source === 'demo'}}" class="room-banner demo-banner">模拟演示 · 全部房间和成员均为演示数据</view>
   <view class="room-mode" wx:if="{{allowDemo}}">
-    <text>{{source === 'demo' ? '仅供页面演示，不连接真实房间' : '当前连接真实基础房间'}}</text>
+    <text>{{source === 'demo' ? '仅供页面演示，不连接真实房间' : '当前连接真实房间'}}</text>
     <button class="room-button mode-switch" bindtap="switchSource" disabled="{{busy}}">{{source === 'demo' ? '切换真实房间' : '进入模拟演示'}}</button>
   </view>
   <view class="room-banner" wx:if="{{pendingAction}}">
@@ -39,7 +39,7 @@
     </view>
     <button class="room-button primary" bindtap="createRoom" loading="{{busy}}" disabled="{{busy || !!pendingAction}}">创建房间</button>
     <button class="room-button quiet" bindtap="openJoin" disabled="{{busy}}">输入房间码加入</button>
-    <view class="room-hint">同一房间使用相同题目和规则。{{source === 'live' ? '当前可创建、加入及准备，联网开赛尚未开放。' : '可完整演示开赛和取消，答题页暂未接入。'}}</view>
+    <view class="room-hint">同一房间使用相同题目和规则。{{source === 'live' ? '双方准备后，由房主开始比赛。' : '可演示开赛和取消，不产生真实成绩。'}}</view>
   </block>
 
   <block wx:elif="{{stage === 'join'}}">
@@ -74,9 +74,9 @@
     <view class="room-summary">{{summary}}</view>
     <button wx:if="{{stage === 'waiting' && source === 'live'}}" class="room-button primary" open-type="share" disabled="{{busy || !!pendingAction}}">邀请伙伴</button>
     <button wx:if="{{canPrepare}}" class="room-button secondary" bindtap="toggleReady" disabled="{{busy || !!pendingAction}}">{{ownReady ? '取消准备' : '我准备好了'}}</button>
-    <button wx:if="{{isHost && stage !== 'waiting'}}" class="room-button primary" bindtap="startMatch" disabled="{{busy || !!pendingAction || !canStart}}">{{source === 'live' ? '联网开赛尚未开放' : '开始比赛'}}</button>
+    <button wx:if="{{isHost && stage !== 'waiting'}}" class="room-button primary" bindtap="startMatch" disabled="{{busy || !!pendingAction || !canStart}}">开始比赛</button>
     <button wx:if="{{!isHost}}" class="room-button primary" disabled="true">等待房主开始</button>
-    <view class="room-hint" wx:if="{{source === 'live'}}">当前支持真实房间及准备；开赛与取消接口还在接入中。</view>
+    <view class="room-hint" wx:if="{{source === 'live'}}">房间状态自动同步。{{room.capabilities.start ? '双方准备后，由房主开始3秒倒计时。' : '当前服务未开放开赛，请联系组长更新服务。'}}</view>
     <view class="room-hint" wx:else>双方准备后，由房主开始3秒倒计时。</view>
     <button class="room-button secondary" bindtap="refreshRoom" disabled="{{busy}}">刷新房间状态</button>
     <button class="room-button quiet" bindtap="leaveRoom" disabled="{{busy || !!pendingAction}}">退出房间</button>
@@ -86,19 +86,29 @@
   <block wx:elif="{{stage === 'countdown'}}">
     <view class="room-centered"><view class="room-badge">双方已准备</view><view class="room-heading">比赛马上开始</view><view class="room-subtitle">准备作答，倒计时结束后进入比赛。</view><view class="count-circle">{{countdown}}</view></view>
     <view class="room-summary">房间 {{room.code}} · {{capacityText}}<view>{{summary}}</view></view>
-    <button class="room-button secondary" bindtap="cancelStart" disabled="{{busy || !!pendingAction || source !== 'demo'}}">取消开始</button>
+    <button class="room-button secondary" bindtap="cancelStart" disabled="{{busy || !!pendingAction || !canCancelStart}}">取消开始</button>
     <button wx:if="{{source === 'demo'}}" class="room-button secondary" data-event="disconnect" bindtap="demoEvent" disabled="{{busy}}">模拟断线（演示）</button>
     <button class="room-button quiet" bindtap="leaveRoom" disabled="{{busy || !!pendingAction}}">退出房间</button>
     <view class="room-hint">这3秒只用于准备，不占比赛时长。断线或切后台不暂停；重连显示原定时间下的剩余秒数。</view>
   </block>
 
-  <block wx:elif="{{stage === 'playing' || stage === 'finished'}}">
-    <view class="room-centered"><view class="state-symbol">✓</view><view class="room-heading">{{title}}</view><view class="room-subtitle">{{stage === 'playing' ? '这里是比赛答题页接入位置。' : '这里是比赛结果页接入位置。'}}<view>当前页面未生成题目或成绩。</view></view></view>
+  <block wx:elif="{{stage === 'playing' || stage === 'awaiting_result' || stage === 'finished'}}">
+    <view class="room-centered"><view class="state-symbol">{{stage === 'awaiting_result' ? '···' : '✓'}}</view><view class="room-heading">{{title}}</view>
+      <view class="room-subtitle" wx:if="{{source === 'demo'}}">当前为模拟演示，不产生题目或真实成绩。</view>
+      <view class="room-subtitle" wx:elif="{{stage === 'playing'}}">已按统一时间开赛。答题与提交功能正在接入，当前只能查看题目。</view>
+      <view class="room-subtitle" wx:elif="{{stage === 'awaiting_result'}}">本局答题时间已结束。成绩尚未生成，请等待结算功能接入；这不是网络故障。</view>
+      <view class="room-subtitle" wx:else>本局已结束，成绩展示功能正在接入。</view>
+    </view>
     <view class="room-summary">房间 {{room.code}} · {{capacityText}}<view>{{summary}}</view></view>
     <view class="room-hint" wx:if="{{stage === 'playing'}}">原定比赛剩余约 {{phaseSeconds}} 秒，切后台不暂停。</view>
+    <view class="room-card" wx:if="{{source === 'live' && stage === 'playing' && room.questions.length}}">
+      <view class="room-label">本局题目（只读） · {{room.questions.length}} 道</view>
+      <view class="room-question" wx:for="{{room.questions}}" wx:key="id">{{item.index}}. {{item.text}}</view>
+    </view>
     <button class="room-button secondary" bindtap="refreshRoom" disabled="{{busy}}">刷新当前状态</button>
     <button wx:if="{{source === 'demo'}}" class="room-button secondary" bindtap="endDemo" disabled="{{busy || !!pendingAction}}">结束本次模拟演示</button>
     <button wx:if="{{stage === 'finished'}}" class="room-button secondary" bindtap="openCreate" disabled="{{busy || !!pendingAction}}">返回房间入口</button>
+    <view class="room-hint" wx:if="{{stage === 'awaiting_result'}}">离开本页面不会清除云端房间。重新打开可恢复当前状态。</view>
   </block>
 
   <block wx:else>

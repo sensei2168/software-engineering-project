@@ -94,13 +94,16 @@ test('exit requires a confirmation, cancel keeps room, and demo never shares a f
   p.copyCode(); assert.equal(s.clipboard(), room.code); assert.match(p.data.notice, /演示/);
   p.leaveRoom(); await s.confirm(true); assert.equal(p.data.room, null); assert.equal(p.data.stage, 'create');
 });
-test('real client connects create, join, prepare, refresh and confirmed leave; live start stays unavailable', async () => {
+test('real client connects create, join, prepare, start, cancel and confirmed leave', async () => {
   const s = roomPageFixture(), p = s.load(); await s.show(p); await p.createRoom();
   const id = p.data.room.roomId, code = p.data.room.code;
   await s.backend.call('b', 'join', { code }); await p.refreshRoom(); await p.toggleReady();
   await s.backend.call('b', 'setReady', { roomId: id, expectedVersion: p.data.room.version, ready: true }); await p.refreshRoom();
-  assert.equal(p.data.stage, 'both'); assert.equal(p.data.canStart, false); await p.startMatch();
-  assert.equal(s.requests.some(r => r.action === 'start'), false); assert.equal(p.onShareAppMessage().path, '/pages/room/room?code=' + code);
+  assert.equal(p.data.stage, 'both'); assert.equal(p.data.canStart, true);
+  assert.equal(p.onShareAppMessage().path, '/pages/room/room?code=' + code);
+  await p.startMatch(); assert.equal(p.data.stage, 'countdown');
+  assert.equal(s.requests.some(r => r.action === 'start'), true);
+  await p.cancelStart(); assert.equal(p.data.stage, 'ready');
   p.leaveRoom(); await s.confirm(true); assert.equal(p.data.room, null); assert.equal(p.data.notice, '已退出并关闭房间。');
 });
 test('real lost response is retried with the same request, even after page recreation', async () => {
