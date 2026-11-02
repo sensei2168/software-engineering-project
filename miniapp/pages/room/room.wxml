@@ -10,6 +10,7 @@
   </view>
   <view class="room-error" wx:if="{{error}}">{{error}}</view>
   <view class="room-notice" wx:if="{{notice}}">{{notice}}</view>
+  <view class="room-banner" wx:if="{{stage === 'countdown' || stage === 'playing'}}">断线或切到后台，时间仍会继续，请保持连接。</view>
 
   <block wx:if="{{stage === 'create'}}">
     <view class="room-heading">创建一场小比赛</view>
@@ -104,8 +105,9 @@
     <view class="room-centered">
       <view class="state-symbol">{{stage === 'full' ? '2/2' : stage === 'offline' ? '···' : '!'}}</view>
       <view class="room-heading">{{stage === 'full' ? '这个房间已经满了' : stage === 'offline' ? '暂时无法连接房间' : stage === 'cancelled' ? '房间已关闭' : '房间已失效'}}</view>
-      <view class="room-subtitle">{{stage === 'offline' ? '连接中断不代表伙伴退出，原定计时仍继续。重连不会重置剩余时间。' : stage === 'cancelled' ? '房主已关闭房间，不能继续本局。' : '请核对房间码，或创建一个新房间。'}}</view>
+      <view class="room-subtitle">{{stage === 'offline' ? '连接中断不代表伙伴退出，重连后会读取原房间的当前状态。' : stage === 'cancelled' ? '房主已关闭房间，不能继续本局。' : '请核对房间码，或创建一个新房间。'}}</view>
     </view>
+    <view wx:if="{{stage === 'offline' && room}}" class="room-banner">{{room.status === 'countdown' || room.status === 'playing' ? '断线期间时间仍在继续，请尽快重连。重连不会重新计时。' : '房间等待有效期不会因断线延长，请重连确认当前状态。'}}</view>
     <view class="room-summary" wx:if="{{room}}">房间 {{room.code}} · {{capacityText}}<view>{{summary}}</view></view>
     <block wx:if="{{stage === 'offline'}}">
       <button class="room-button primary" bindtap="retryConnection" disabled="{{busy}}" loading="{{busy}}">{{pendingAction ? '重试未确认操作' : '重试连接'}}</button>
