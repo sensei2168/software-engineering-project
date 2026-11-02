@@ -11,7 +11,7 @@ const output = process.env.ROOM_PREVIEW_DIR || fs.mkdtempSync(path.join(os.tmpdi
 fs.mkdirSync(output, { recursive: true });
 const root = path.resolve(__dirname, '../miniapp');
 const escape = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const evaluate = (value, data) => vm.runInNewContext(value, data, { timeout: 100 });
+const evaluate = (value, data) => vm.runInNewContext(value, data, { timeout: 1000 });
 const interpolate = (value, data) => value.replace(/{{([\s\S]*?)}}/g, (_, expr) => escape(evaluate(expr, data)));
 function parse(source) {
   const tree = { children: [] }, stack = [tree];

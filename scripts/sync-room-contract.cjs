@@ -1,11 +1,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { RULES } = require('../miniapp/utils/practice-rules');
+const { RULES, RULE_VERSION } = require('../miniapp/utils/practice-rules');
 const { DURATIONS } = require('../miniapp/utils/practice-config');
 
 const contract = {
   schemaVersion: 1,
-  ruleVersion: '2026-10-27.1',
+  ruleVersion: RULE_VERSION,
   durations: DURATIONS,
   rules: RULES.map(({ id, grade, operation, limit }) => ({ id, grade, operation, limit }))
 };
