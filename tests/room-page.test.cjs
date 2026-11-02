@@ -163,3 +163,22 @@ test('ending an active demo is explicit, does not touch live recovery and permit
   assert.equal(s.values.get('room-p2.last-room.' + envId), 'untouched-live-room');
   await both(s, p); await p.startMatch(); assert.equal(p.data.countdown, 3); assert.equal(s.requests.length, 0);
 });
+test('RP12: preparation never consumes the selected 120 seconds; late reconnect reflects elapsed play time', async () => {
+  const { s, p } = await demo(); await both(s, p); await p.startMatch();
+  const start = p.data.room.startAt, end = p.data.room.endAt;
+  assert.equal(end - start, 120000);
+  await s.demo(p, 'disconnect'); await s.advance(1000); await p.retryConnection();
+  assert.equal(p.data.stage, 'countdown'); assert.equal(p.data.countdown, 2);
+  await s.advance(2000); assert.equal(p.data.stage, 'playing'); assert.equal(p.data.phaseSeconds, 120);
+  await s.demo(p, 'disconnect'); await s.advance(7000); await p.retryConnection();
+  assert.equal(p.data.phaseSeconds, 113); assert.equal(p.data.room.startAt, start); assert.equal(p.data.room.endAt, end);
+});
+test('RP14: background stops display callbacks, not the shared timeline or membership', async () => {
+  const { s, p } = await demo(); await both(s, p); await p.startMatch();
+  const start = p.data.room.startAt, end = p.data.room.endAt;
+  p.onHide(); assert.equal(s.timers(), 0); await s.advance(1000); await s.show(p);
+  assert.equal(p.data.countdown, 2); assert.equal(p.data.stage, 'countdown');
+  p.onHide(); await s.advance(6000); await s.show(p);
+  assert.equal(p.data.stage, 'playing'); assert.equal(p.data.phaseSeconds, 116);
+  assert.equal(p.data.room.members.length, 2); assert.equal(p.data.room.startAt, start); assert.equal(p.data.room.endAt, end);
+});

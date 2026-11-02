@@ -55,7 +55,7 @@ AppID 是项目标识，不是 AppSecret。当前代码无需填写 AppSecret；
 
 运行 `node --test tests/*.test.cjs` 检查设置、房间业务、客户端恢复及联调页。运行 `node scripts/sync-room-contract.cjs --check` 核对前后端题型配置；规则修改后先评审，再运行不带 `--check` 的命令更新生成文件。测试没有连接真实云环境。
 
-房间页新增 `tests/room-demo.test.cjs`、`tests/room-page.test.cjs`，覆盖模拟、角色权限、3秒开赛、取消、退出、恢复、真实客户端的待确认请求和版本冲突；本分支完整CJS测试共101项通过。`node tests/room-layout.browser.cjs` 检查房间15种状态×三种宽度的45个近似布局场景，不替代微信真机验证。开发演示可从房间页点击“进入模拟演示”，或自定义编译pages/room/room、参数mode=demo。详细手工用例见上述房间页交付说明。
+房间页新增 `tests/room-demo.test.cjs`、`tests/room-page.test.cjs`，覆盖模拟、角色权限、3秒开赛、取消、退出、恢复、真实客户端的待确认请求和版本冲突；本分支完整CJS测试共103项通过。`node tests/room-layout.browser.cjs` 检查房间15种状态×三种宽度的45个近似布局场景，不替代微信真机验证。开发演示可从房间页点击“进入模拟演示”，或自定义编译pages/room/room、参数mode=demo。详细手工用例见上述房间页交付说明。
 
 布局回归可运行 `node tests/settings-layout.browser.cjs`，需要本机Chrome（可用CHROME_PATH指定路径）。它检查320／375／430宽度下原生按钮默认尺寸是否导致重叠或越界；不替代真机复查。
 
