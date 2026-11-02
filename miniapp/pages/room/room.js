@@ -24,6 +24,7 @@ Page({
     this._alive = true; this._visible = false; this._epoch = 0; this._clock = null; this._offset = 0;
     this._client = null; this._roomId = ''; this._busy = false; this._confirming = false;
     this._visibilityEpoch = 0; this._lastServerNow = 0; this._nextPollAt = 0;
+    this._readEpoch = 0; this._polling = null;
     let allowDemo = false;
     try { allowDemo = ['develop', 'trial'].includes(wx.getAccountInfoSync().miniProgram.envVersion); } catch (_) {}
     const source = options.mode === 'demo' && allowDemo ? 'demo' : 'live';
@@ -49,6 +50,7 @@ Page({
   activate(source) {
     this.stopClock(); this._epoch++; this._client = null; this._roomId = ''; this._offset = 0;
     this._lastServerNow = 0; this._nextPollAt = 0;
+    this._readEpoch++; this._polling = null;
     this.setData({ source, room: null, slots: [], summary: '', busy: false, pendingAction: '',
       error: '', notice: '', countdown: 3, stage: this.data.entry, editConfig: false });
     try {
@@ -101,11 +103,13 @@ Page({
     this.stopClock(); this.setData(patch);
     if (patch.stage) this.scrollToTop();
   },
-  async perform(operation, successNotice = '', quiet = false) {
+  async perform(operation, successNotice = '') {
     if (!this._alive || this._busy) return;
+    // 用户操作优先；正在返回的后台查询不再更新本次操作后的页面。
+    this._readEpoch++;
     const epoch = this._epoch; this._busy = true;
     const visibilityEpoch = this._visibilityEpoch;
-    this.setData(quiet ? { busy: true } : { busy: true, error: '', notice: '' });
+    this.setData({ busy: true, error: '', notice: '' });
     try {
       const response = await operation(this.getClient());
       if (!this._alive || epoch !== this._epoch) return;
@@ -116,7 +120,7 @@ Page({
         this._roomId = ''; this.stopClock();
         this.setData({ room: null, slots: [], summary: '', stage: 'create', entry: 'create',
           notice: data.closed ? '已退出并关闭房间。' : '已退出房间，席位已释放。' });
-      } else if (!quiet) this.setData({ notice: data.event || (data.operation && data.operation.replayed
+      } else this.setData({ notice: data.event || (data.operation && data.operation.replayed
         ? '已确认原操作，未重复写入；显示的是当前房间状态。' : successNotice) });
     } catch (error) {
       if (!this._alive || epoch !== this._epoch) return;
@@ -146,7 +150,23 @@ Page({
     }
   },
   refreshRoom(quiet = false) {
-    if (this._roomId) return this.perform(client => client.call('get', { roomId: this._roomId }), '已刷新房间状态。', quiet === true);
+    if (quiet === true) return this.pollRoom();
+    if (this._roomId) return this.perform(client => client.call('get', { roomId: this._roomId }), '已刷新房间状态。');
+  },
+  async pollRoom() {
+    if (!this._alive || !this._visible || !this._roomId || this._busy || this._polling || this._confirming || this.data.pendingAction) return;
+    const token = { epoch: this._epoch, visibility: this._visibilityEpoch, read: this._readEpoch, roomId: this._roomId };
+    this._polling = token;
+    const current = () => this._alive && this._visible && !this._busy && token.epoch === this._epoch &&
+      token.visibility === this._visibilityEpoch && token.read === this._readEpoch && token.roomId === this._roomId;
+    try {
+      const response = await this.getClient().call('get', { roomId: token.roomId });
+      if (current()) this.setRoom(response.data.room, response.serverNow);
+    } catch (error) {
+      if (current()) this.applyError(error);
+    } finally {
+      if (this._polling === token) this._polling = null;
+    }
   },
   retryConnection() {
     try { if (this.data.source === 'demo') this.getClient().reconnect(); }

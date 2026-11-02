@@ -113,3 +113,28 @@ test('expired storage access stops polling and clears unusable recovery instead 
   assert.equal(p.data.stage,'expired');assert.equal(p.data.room,null);assert.equal(s.timers(),0);
   assert.equal(s.values.has('room-p2.last-room.'+envId),false);p.onUnload();
 });
+
+test('automatic refresh never changes button busy state and accepts a click while query is pending', async () => {
+  const {s,p}=await pair(); const patches=[]; const original=p.setData.bind(p);
+  p.setData=patch=>{ patches.push(structuredClone(patch)); original(patch); };
+  const held=holdOneResponse(s);await s.advance(1000);await held.arrived;
+  assert.equal(p.data.busy,false);assert.equal(p._busy,false);
+  const reads=s.requests.filter(x=>x.action==='get').length;
+  await s.advance(1000);assert.equal(s.requests.filter(x=>x.action==='get').length,reads);
+  assert.equal(patches.some(x=>Object.hasOwn(x,'busy')),false);
+  await p.toggleReady();assert.equal(p.data.ownReady,true);
+  held.release();await s.settle();assert.equal(p.data.ownReady,true);
+  assert.equal(s.requests.filter(x=>x.action==='setReady').length,1);p.onUnload();
+});
+
+test('old automatic-query failure cannot overwrite a successful user action with offline state', async () => {
+  const {s,p}=await pair();const held=holdOneResponse(s);await s.advance(1000);await held.arrived;
+  await p.toggleReady();s.state.loseResponse=true;held.release();await s.settle();
+  assert.equal(p.data.stage,'ready');assert.equal(p.data.error,'');assert.equal(p.data.ownReady,true);p.onUnload();
+});
+
+test('automatic-query response after unload cannot update the former room', async () => {
+  const {s,p}=await pair();const held=holdOneResponse(s);await s.advance(1000);await held.arrived;
+  p.onUnload();const snapshot=JSON.stringify(p.data);held.release();await s.settle();
+  assert.equal(JSON.stringify(p.data),snapshot);assert.equal(s.timers(),0);
+});
