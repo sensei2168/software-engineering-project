@@ -132,7 +132,7 @@
     <button class="room-button secondary" bindtap="refreshRoom" disabled="{{busy}}">刷新当前状态</button>
     <button wx:if="{{source === 'demo'}}" class="room-button secondary" bindtap="endDemo" disabled="{{busy || !!pendingAction}}">结束本次模拟演示</button>
     <button wx:if="{{source === 'live' && canReturnMatch}}" class="room-button primary" bindtap="backToMatchSettings" disabled="{{busy || !!pendingAction}}">返回比赛设置</button>
-    <button wx:if="{{source === 'live'}}" class="room-button quiet" bindtap="goHome" disabled="{{busy || !!pendingAction}}">返回首页（比赛继续计时）</button>
+    <button wx:if="{{source === 'live'}}" class="room-button quiet" bindtap="goHome" disabled="{{busy || !!pendingAction}}">{{stage === 'finished' ? '返回首页' : '返回首页（比赛继续计时）'}}</button>
     <view class="room-hint" wx:if="{{stage === 'awaiting_result'}}">返回设置不会取消这场比赛，也不会生成成绩。设置页可重新查看上一场比赛。</view>
   </block>
 

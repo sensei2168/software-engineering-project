@@ -119,7 +119,8 @@ function createRoomService({ store, now = Date.now, randomCode = () => String(cr
     return room.status;
   }
   function available(room, time) {
-    if (!room || time >= room.purgeAt) fail('ROOM_NOT_FOUND', '房间不存在或记录已过期');
+    // 即使24小时内无人读取、尚未触发按需结算，也不能首次访问时复活过期比赛。
+    if (!room || time >= room.purgeAt || room.status === 'active' && room.attempt && time >= room.attempt.endAt + RETAIN_MS) fail('ROOM_NOT_FOUND', '房间不存在或记录已过期');
     return room;
   }
   function snapshot(room, userId, time) {
@@ -244,7 +245,7 @@ function createRoomService({ store, now = Date.now, randomCode = () => String(cr
               room.status = 'active'; room.schemaVersion = 2; room.version++;
               room.attempt = { attemptId: appliedAttemptId, startAt, endAt, ruleVersion: generated.ruleVersion,
                 engineVersion: generated.engineVersion, questions: copy(generated.questions) };
-              room.purgeAt = Math.max(room.purgeAt, endAt + RETAIN_MS);
+              room.purgeAt = endAt + RETAIN_MS;
               await write(tx, room);
             } else if (input.action === 'cancelStart') {
               appliedAttemptId = room.attempt.attemptId;
@@ -288,7 +289,7 @@ function createRoomService({ store, now = Date.now, randomCode = () => String(cr
       let data;
       if (input.action === 'whoami') {
         data = { userId, appId: APP_ID, environmentId: typeof context.ENV === 'string' ? context.ENV : '',
-          stage: 'p4-match-complete', ruleVersion: contract.ruleVersion,
+          stage: 'p4-match-complete', serviceVersion: '2026-11-03.2', ruleVersion: contract.ruleVersion,
           capabilities: { start: true, cancelStart: true, submitAnswer: true, finish: true } };
       } else if (input.action === 'get') {
         data = await store.transaction(async tx => ({ room: snapshot(await get(tx, input.payload.roomId, userId), userId, now()) }));

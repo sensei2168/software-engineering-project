@@ -109,6 +109,12 @@ test('transaction failure rolls back submission and receipt; retry accepts exact
   assert.ok(!f.store.records(COLLECTIONS.rooms)[0].attempt.players);
   f.store.failAtWrite=0;assert.equal((await f.call('a','submitAnswer',payload,id)).ok,true);
 });
+test('first access after the retention boundary cannot revive an unobserved expired match', async () => {
+  const f=fixture(),r=await start(f);f.advance(3000+60000+RETAIN_MS);
+  error(await f.call('a','get',{roomId:r.roomId}),'ROOM_NOT_FOUND');
+  error(await f.call('a','finish',batch(r)),'ROOM_NOT_FOUND');
+  assert.equal(f.store.records(COLLECTIONS.rooms)[0].purgeAt,r.endAt+RETAIN_MS);
+});
 test('lost cloud answer response survives client recreation and settles original accepted answer after deadline', async () => {
   const f=fixture(),r=await start(f),q=privateQuestions(f)[0];f.advance(3000);const values=new Map();let lose=true;
   const wxApi={getStorageSync:k=>values.get(k),setStorageSync:(k,v)=>values.set(k,v),removeStorageSync:k=>values.delete(k),cloud:{init(){},async callFunction({data}) { const result=await f.service(data,f.context('a'));if(lose){lose=false;throw Error('lost');}return{result}; }}};
