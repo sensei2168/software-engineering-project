@@ -6,9 +6,46 @@ test('maintenance defaults off and refuses spoofed timers from known client iden
   for(const identity of [{OPENID:'user'},{FROM_OPENID:'user'},{TCB_UUID:'user'},{SOURCE:'wx_client'},{SOURCE:'wx_devtools'}]) assert.equal(allowed(event,identity,'1'),false);
   assert.equal(allowed({Type:'Timer',TriggerName:'wrong'},{},'1'),false);
 });
-test('cleanup rechecks expiry transactionally, protects renewed codes, and does not accept client cutoff',async()=>{
+test('cleanup rechecks expiry transactionally and protects renewed codes',async()=>{
   const removed=[];
-  const store={async listExpired(collection,field,cutoff,limit){assert.equal(cutoff,100);assert.equal(limit,20);return[{id:'expired'},{id:'renewed'},{id:'missing'},{id:'malformed'}];},
+  const store={async listExpired(collection,field,cutoff,limit){assert.equal(cutoff,100);assert.equal(limit,5);return[{id:'expired'},{id:'renewed'},{id:'missing'},{id:'malformed'}];},
     async transaction(run){return run({async get(collection,id){return id==='expired'?{purgeAt:99,expiresAt:100}:id==='renewed'?{purgeAt:101,expiresAt:101}:id==='malformed'?{purgeAt:'1',expiresAt:'1'}:null;},async remove(collection,id){removed.push(collection+'/'+id);}});}};
-  const result=await cleanExpired({store,now:()=>100});assert.equal(removed.length,3);assert.ok(removed.every(id=>id.endsWith('/expired')));assert.equal(result.ok,true);
+  const result=await cleanExpired({store,now:()=>100,dryRun:false});assert.equal(removed.length,1);assert.ok(removed.every(id=>id.endsWith('/expired')));assert.equal(result.ok,true);
+});
+test('default preview only queries and cannot delete any document',async()=>{
+  const result=await cleanExpired({store:{async listExpired(){return[{id:'old'}];},transaction(){throw Error('preview must not mutate');}},now:()=>100});
+  assert.equal(result.mode,'preview');assert.equal(result.candidates,1);assert.equal(result.attempted,0);assert.equal(Object.values(result.removed)[0],0);
+});
+test('five-minute schedule rotates all three collections with one bounded query per invocation',async()=>{
+  const collections=[];for(const time of [0,300000,600000])await cleanExpired({store:{async listExpired(c,f,t,n){collections.push(c);assert.equal(n,5);return[];}},now:()=>time});
+  assert.equal(new Set(collections).size,3);
+});
+test('slow query consumes the budget and prevents any new transaction',async()=>{
+  let time=0;const result=await cleanExpired({dryRun:false,now:()=>time,store:{async listExpired(){time=1300;return[{id:'old'}];},transaction(){throw Error('budget exceeded');}}});
+  assert.equal(result.stoppedForBudget,true);assert.equal(result.attempted,0);assert.equal(result.mayHaveMore,true);
+});
+test('budget is rechecked after transaction read and prevents a late delete',async()=>{
+  let time=0;const result=await cleanExpired({dryRun:false,now:()=>time,store:{async listExpired(){return[{id:'old'}];},async transaction(run){return run({async get(){time=1200;return{purgeAt:0};},remove(){throw Error('late delete');}});}}});
+  assert.equal(result.stoppedForBudget,true);assert.equal(Object.values(result.removed)[0],0);
+});
+test('batch limit is enforced even if the data adapter returns more candidates',async()=>{
+  let removed=0;const result=await cleanExpired({dryRun:false,now:()=>100,store:{async listExpired(){return Array.from({length:20},(_,id)=>({id:String(id)}));},async transaction(run){return run({async get(){return{purgeAt:0};},async remove(){removed++;}});}}});
+  assert.equal(removed,5);assert.equal(result.mayHaveMore,true);assert.equal(result.candidates,5);
+});
+
+test('entry uses deployed preview mode, ignores caller delete options, and supports emergency off',async()=>{
+  const fs=require('node:fs'),vm=require('node:vm');
+  const source=fs.readFileSync(require.resolve('../miniapp/cloudfunctions/roomMaintenance/index.js'),'utf8');
+  let queries=0;
+  const db={command:{lte:v=>v},collection(){return{where(){return{limit(){return{async get(){queries++;return{data:[{_id:'expired'}]};}};}};}};},runTransaction(){throw Error('preview must not write');}};
+  const env={}, exported={};
+  vm.runInNewContext(source,{exports:exported,process:{env},console,require(name){
+    if(name==='wx-server-sdk')return{init(){},database(){return db;},getWXContext(){return{};}};
+    if(name==='./cleanup')return require('../miniapp/cloudfunctions/roomMaintenance/cleanup');
+    if(name==='./settings.json')return require('../miniapp/cloudfunctions/roomMaintenance/settings.json');
+    throw Error('unexpected dependency');
+  }});
+  const event={Type:'Timer',TriggerName:'room-cleanup',mode:'delete',dryRun:false};
+  assert.equal((await exported.main(event)).mode,'preview');assert.equal(queries,1);
+  env.ROOM_MAINTENANCE_ENABLED='0';assert.equal((await exported.main(event)).error,'MAINTENANCE_DISABLED_OR_FORBIDDEN');assert.equal(queries,1);
 });
