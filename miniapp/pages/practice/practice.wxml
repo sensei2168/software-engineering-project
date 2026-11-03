@@ -66,8 +66,8 @@
               value="{{fractionNumerator}}"
               placeholder="分子"
               placeholder-class="fraction-placeholder"
-              focus="{{inputFocus && !finished}}"
-              disabled="{{finished}}"
+              focus="{{inputFocus && !finished && !deadlineLocked}}"
+              disabled="{{finished || deadlineLocked}}"
               data-part="numerator"
               bindinput="onFractionInput"
             />
@@ -79,7 +79,7 @@
               value="{{fractionDenominator}}"
               placeholder="分母"
               placeholder-class="fraction-placeholder"
-              disabled="{{finished}}"
+              disabled="{{finished || deadlineLocked}}"
               data-part="denominator"
               bindinput="onFractionInput"
             />
@@ -93,8 +93,8 @@
             value="{{currentValue}}"
             placeholder="?"
             placeholder-class="quiz-placeholder"
-            focus="{{inputFocus && !finished}}"
-            disabled="{{finished}}"
+            focus="{{inputFocus && !finished && !deadlineLocked}}"
+            disabled="{{finished || deadlineLocked}}"
             data-index="{{currentIndex}}"
             bindinput="onAnswerInput"
             confirm-type="next"
@@ -103,7 +103,7 @@
         </view>
       </block>
 
-      <view class="quiz-tip">{{reviewMode ? '点击下方题号可以回看任意一题' : (fractionMode ? '分子、分母都要填；整数 0 写成 0/1，1 写成 1/1' : '输入答案后点“下一题”，可随时返回修改')}}</view>
+      <view class="quiz-tip">{{reviewMode ? '点击下方题号可以回看任意一题' : (deadlineLocked ? '时间已到，答案已锁定，请点击“重试提交”' : (fractionMode ? '分子、分母都要填；整数 0 写成 0/1，1 写成 1/1' : '输入答案后点“下一题”，可随时返回修改'))}}</view>
     </view>
 
     <view class="quiz-actions">
@@ -113,7 +113,7 @@
 
     <view class="quiz-footer">
       <view class="quiz-count">已填 {{answeredCount}} / {{total}}</view>
-      <button class="primary" bindtap="onSubmitTap" loading="{{submitting}}" disabled="{{submitting || finished}}">{{finished ? '已交卷' : '交卷并批改'}}</button>
+      <button class="primary" bindtap="onSubmitTap" loading="{{submitting}}" disabled="{{submitting || finished}}">{{finished ? '已交卷' : (deadlineLocked ? '重试提交' : '交卷并批改')}}</button>
     </view>
 
     <view class="nav-card">

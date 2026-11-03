@@ -110,6 +110,7 @@ Page({
     inputFocus: false,
     submitting: false,
     finished: false,
+    deadlineLocked: false,
     navCells: [],
     reviewMode: false,
     summary: null,
@@ -130,6 +131,7 @@ Page({
     this.submitted = false;
     this.tickTimer = null;
     this.pageActive = true;
+    this.pageUnloaded = false;
     this.result = null;
     this.ruleVersion = '';
     this.savedRecordId = '';
@@ -153,7 +155,8 @@ Page({
 
   onShow() {
     this.pageActive = true;
-    if (this.questions && this.questions.length && !this.submitted) {
+    if (this.questions && this.questions.length && !this.submitted &&
+      !this.data.finished && !this.data.deadlineLocked) {
       if (!this.startTime) this.beginQuiz();
       else this.startTimerLoop();
     }
@@ -167,6 +170,7 @@ Page({
 
   onUnload() {
     this.pageActive = false;
+    this.pageUnloaded = true;
     this.clearTimer();
   },
 
@@ -206,6 +210,7 @@ Page({
         answeredCount: 0,
         finished: false,
         submitting: false,
+        deadlineLocked: false,
         navCells: data.questions.map(function (question, index) {
           return { no: index + 1, state: 'unanswered' };
         }),
@@ -225,7 +230,21 @@ Page({
     }
   },
 
-  /** 正式开始：记录开始时间，限时模式启动定时器（只在题目加载完成后调用一次）。 */
+  /** 本次答题的截止时间（毫秒）；普通模式不设截止。 */
+  deadlineAt() {
+    return this.startTime + this.config.durationSeconds * 1000;
+  },
+
+  isDeadlineReached() {
+    return this.data.timed && this.startTime > 0 && Date.now() >= this.deadlineAt();
+  },
+
+  /** 到截止后冻结作答：不能改答案，只能重试同一份提交。 */
+  lockDeadline() {
+    if (!this.data.deadlineLocked) this.setData({ deadlineLocked: true });
+  },
+
+  /** 正式开试：记录开始时间，限时模式启动定时器（只在题目加载完成后调用一次）。 */
   beginQuiz() {
     this.startTime = Date.now();
     this.startTimerLoop();
@@ -234,7 +253,7 @@ Page({
   /** 启动倒计时刷新；不清空 startTime，切后台回来时沿用原来的开始时间。 */
   startTimerLoop() {
     this.clearTimer();
-    if (!this.data.timed) return;
+    if (!this.data.timed || this.data.finished || this.data.deadlineLocked) return;
     if (typeof setInterval !== 'function') return;
     this.tickTimer = setInterval(() => this.tick(), TIMER_INTERVAL_MS);
     this.tick();
@@ -248,7 +267,7 @@ Page({
   },
 
   tick() {
-    if (!this.data.timed || this.submitted) return;
+    if (!this.data.timed || this.submitted || this.data.finished || this.data.deadlineLocked) return;
     const duration = this.config.durationSeconds;
     const elapsed = (Date.now() - this.startTime) / 1000;
     const remaining = Math.max(0, duration - elapsed);
@@ -257,14 +276,15 @@ Page({
       this.setData({ remainingText: text, remainingSeconds: Math.ceil(remaining) });
     }
     if (remaining <= 0 && !this.submitted) {
-      // 到时直接收卷，不弹“还有 N 题没填”的确认框
+      // 到时直接冻结并收卷，不弹“还有 N 题没填”的确认框
+      this.lockDeadline();
       this.submit('timeup');
     }
   },
 
   /** 数字键盘输入：整数最多 4 位；小数允许一个小数点。 */
   onAnswerInput(event) {
-    if (this.data.finished) return;
+    if (this.data.finished || this.data.deadlineLocked) return;
     const index = Number(event.currentTarget.dataset.index);
     if (!Number.isInteger(index) || index < 0 || index >= this.answers.length) return;
     const raw = event.detail.value === undefined || event.detail.value === null ? '' : String(event.detail.value);
@@ -287,7 +307,7 @@ Page({
 
   /** 分数题：分子、分母两个输入框，拼成 "n/d" 存进 answers。 */
   onFractionInput(event) {
-    if (this.data.finished) return;
+    if (this.data.finished || this.data.deadlineLocked) return;
     const index = this.data.currentIndex;
     if (!Number.isInteger(index) || index < 0 || index >= this.answers.length) return;
     const part = event.currentTarget.dataset.part;
@@ -375,6 +395,11 @@ Page({
 
   onSubmitTap() {
     if (this.submitted || this.data.submitting) return;
+    // 到截止后答案已冻结，只允许重试同一份提交，不再检查/修改答案
+    if (this.data.deadlineLocked) {
+      this.submit('timeup');
+      return;
+    }
     const answered = this.countAnswered();
     const blankCount = this.questions.length - answered;
     if (answered === 0) {
@@ -417,15 +442,9 @@ Page({
 
     try {
       const response = await questionService.submitAnswers(payload);
-      if (!this.pageActive) return;
+      if (this.pageUnloaded) return;
       if (!response.ok) {
-        this.submitted = false;
-        this.setData({ submitting: false });
-        wx.showModal({
-          title: '提交失败',
-          content: response.message || '批改服务暂时不可用，请重试。',
-          showCancel: false
-        });
+        this.handleSubmitFailure(response.message || '批改服务暂时不可用，请重试。');
         return;
       }
       const result = response.data.result;
@@ -472,11 +491,29 @@ Page({
       }
     } catch (error) {
       console.error('[practice] 提交异常', error);
-      if (!this.pageActive) return;
-      this.submitted = false;
-      this.setData({ submitting: false });
-      wx.showModal({ title: '提交失败', content: '网络异常，答案还在本页，请再试一次。', showCancel: false });
+      this.handleSubmitFailure('网络异常，答案还在本页，请再试一次。');
     }
+  },
+
+  /**
+   * 提交失败：区分“还能继续答题”和“已经到截止”。
+   * - 未到截止：恢复倒计时，允许继续作答和再次提交；
+   * - 已到截止：冻结答案，只允许重试同一份提交，不重置开始时间、不延长时间。
+   */
+  handleSubmitFailure(message) {
+    if (this.pageUnloaded) return;
+    this.submitted = false;
+    const locked = this.isDeadlineReached();
+    this.setData({ submitting: false, deadlineLocked: locked });
+    if (locked) this.clearTimer();
+    else if (this.pageActive) this.startTimerLoop();
+    wx.showModal({
+      title: '提交失败',
+      content: (message || '批改服务暂时不可用，请重试。') +
+        (locked ? '\n\n时间已到，答案已锁定，请点击“重试提交”。' : '\n\n可以继续作答，倒计时会继续。'),
+      showCancel: false,
+      confirmText: '知道了'
+    });
   },
 
   /** 把本页的批改结果转成结果页/记录页约定的结构。 */
