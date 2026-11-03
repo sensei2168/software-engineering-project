@@ -29,7 +29,7 @@ async function auditRoom(options) {
   try {
     const identity = await send({ action: 'whoami' });
     check('expected-deployment', identity.ok && identity.data.environmentId === envId &&
-      identity.data.stage === 'p4-room-start' && identity.data.capabilities.start);
+      ['p4-room-start', 'p4-match-complete'].includes(identity.data.stage) && identity.data.capabilities.start);
     createAttempted = true;
     const created = await Promise.all([send(create), send(create), send(create)]);
     room = created.find(item => item.ok)?.data.room;

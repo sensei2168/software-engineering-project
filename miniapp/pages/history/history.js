@@ -38,7 +38,7 @@ Page({
         total: typeof summary.total === 'number' ? summary.total : (record.items ? record.items.length : 0),
         correct: typeof summary.correct === 'number' ? summary.correct : 0,
         accuracyText: summary.accuracyText || '0.0%',
-        modeText: config.mode === 'timed' ? '限时' : '普通',
+        modeText: record.kind === 'match' ? '比赛' : record.kind === 'correction' ? '订正' : config.mode === 'timed' ? '限时' : '普通',
         isDevData: record.isDevData === true
       };
     });

@@ -167,9 +167,9 @@ test('database failure is sanitized, rolls back, and permits safe retry with the
   assert.equal((await f.create('a', f.config, requestId)).ok, true); assert.equal(f.count(), 1);
 });
 
-test('unimplemented match operations and unknown actions fail explicitly', async () => {
+test('match operations require valid parameters and unknown actions fail explicitly', async () => {
   const f = fixture();
-  for (const action of ['submitAnswer', 'finish']) error(await f.call('a', action), 'FEATURE_NOT_READY');
+  for (const action of ['submitAnswer', 'finish']) error(await f.call('a', action), 'INVALID_ARGUMENT');
   error(await f.service({ action: 'invented' }, f.context('a')), 'UNKNOWN_ACTION');
 });
 

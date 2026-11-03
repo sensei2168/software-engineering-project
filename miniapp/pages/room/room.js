@@ -4,6 +4,10 @@ const { roomConfig, configSummary, viewRoom, roomError } = require('../../utils/
 const { GRADES, getRule, getRulesForGrade, getGradeLabel } = require('../../utils/practice-rules');
 const { DURATIONS } = require('../../utils/practice-config');
 const { envId } = require('../../config/cloud');
+const { parseAnswer } = require('../../utils/exact-answer');
+const { saveRecord } = require('../../utils/record-store');
+const { toRows } = require('../../utils/result-stats');
+const { openPage } = require('../../utils/navigation');
 const LAST_ROOM = 'room-p2.last-room.' + envId;
 const SAVED_ROOM = 'room-p2.saved-room.' + envId;
 const INITIAL_CONFIG = roomConfig().value;
@@ -19,7 +23,10 @@ Page({
     inputError: '', config: INITIAL_CONFIG, configSummary: configSummary(INITIAL_CONFIG),
     editConfig: false, countText: '30', configError: '', grades: GRADES, durations: DURATIONS,
     ruleChoices: getRulesForGrade(1), ruleIndex: 0, countdown: 3, waitingSeconds: 600,
-    phaseSeconds: 0, entry: 'create', savedRoomId: ''
+    phaseSeconds: 0, entry: 'create', savedRoomId: '', questionIndex: 0, currentQuestion: null,
+    answerInput: '', answerLocked: false, answerError: '', submittedCount: 0, partnerCount: 0,
+    selfFinished: false, partnerFinished: false, matchResult: null, resultRows: [], resultSaveText: '', resultSaved: false,
+    canReturnMatch: false, outcomeText: '', questionChoices: []
   },
   onLoad(options = {}) {
     this._alive = true; this._visible = false; this._epoch = 0; this._clock = null; this._offset = 0;
@@ -91,6 +98,7 @@ Page({
     this._lastServerNow = serverNow;
     this._nextPollAt = Date.now() + (room.status === 'awaiting_result' ? RESULT_POLL_MS : POLL_MS);
     this.setData({ room, ...view, error: '', editConfig: false });
+    this.syncMatch(room);
     if (changedView) this.scrollToTop();
     this.startClock();
   },
@@ -130,7 +138,7 @@ Page({
       if (error.code === 'STALE_RESPONSE') {
         try { this._roomId = ''; this.updatePending(); this.restoreRoomId(); } catch (storageError) { this.applyError(storageError); return; }
       }
-      if (['VERSION_CONFLICT', 'ATTEMPT_MISMATCH', 'MATCH_ALREADY_STARTED', 'INVALID_STATE', 'STALE_RESPONSE'].includes(error.code) && this._roomId) {
+      if (['VERSION_CONFLICT', 'ATTEMPT_MISMATCH', 'MATCH_ALREADY_STARTED', 'INVALID_STATE', 'STALE_RESPONSE', 'MATCH_ENDED', 'ALREADY_FINISHED', 'ANSWER_LOCKED'].includes(error.code) && this._roomId) {
         try {
           const response = await this.getClient().call('get', { roomId: this._roomId });
           if (!this._alive || epoch !== this._epoch) return;
@@ -179,17 +187,85 @@ Page({
   },
   openJoin() { this.showEntry('join'); },
   openCreate() { this.showEntry('create'); },
+  syncMatch(room) {
+    const questions = room.questions || [], progress = room.progress, self = progress && progress.self;
+    const answers = self ? self.answers : [], partner = progress && progress.players.find(p => p.role !== room.selfRole);
+    const changed = this._answerAttempt !== room.attemptId;
+    if (changed || !this._draftAnswers) this._draftAnswers = {};
+    this._answerAttempt = room.attemptId;
+    const index = changed ? 0 : Math.min(this.data.questionIndex, Math.max(0, questions.length - 1));
+    const current = questions[index] || null, submitted = current && answers.find(a => a.questionId === current.id);
+    const result = room.result;
+    this.setData({ questionIndex: index, currentQuestion: current, answerLocked: !!submitted,
+      answerInput: submitted ? submitted.answer : current ? this._draftAnswers[current.id] || '' : '',
+      questionChoices: questions.map(q => ({ id: q.id, label: q.index + (answers.some(a => a.questionId === q.id) ? ' · 已提交' : ' · 未提交') })),
+      submittedCount: answers.length, partnerCount: partner ? partner.submitted : 0,
+      selfFinished: !!(self && self.finished), partnerFinished: !!(partner && partner.finished),
+      matchResult: result || null, resultRows: result ? toRows(result.items) : [],
+      canReturnMatch: ['finished', 'awaiting_result'].includes(room.status) || !!(self && self.finished),
+      outcomeText: result ? ({ win: '你赢了，继续加油！', lose: '这次伙伴领先，再练一练！', draw: '本场平局，都很努力！' })[result.outcome] : '' });
+    if (result) this.saveMatchResult();
+  },
+  chooseQuestion(event) {
+    const index = Number(event.detail.value), room = this.data.room;
+    if (!room || !Number.isInteger(index) || !room.questions[index] || this._busy || this.data.pendingAction) return;
+    const question = room.questions[index], accepted = room.progress.self.answers.find(a => a.questionId === question.id);
+    this.setData({ questionIndex: index, currentQuestion: question, answerInput: accepted ? accepted.answer : this._draftAnswers[question.id] || '', answerLocked: !!accepted, answerError: '' });
+  },
+  nextQuestion() {
+    const questions = this.data.room && this.data.room.questions || [];
+    if (questions.length) this.chooseQuestion({ detail: { value: (this.data.questionIndex + 1) % questions.length } });
+  },
+  inputAnswer(event) {
+    if (!this._busy && !this.data.answerLocked && this.data.currentQuestion) {
+      const text = String(event.detail.value); this._draftAnswers[this.data.currentQuestion.id] = text;
+      this.setData({ answerInput: text, answerError: '' });
+    }
+  },
+  submitAnswer() {
+    const room = this.data.room, question = this.data.currentQuestion;
+    if (this._busy || this._confirming || this.data.pendingAction || !question || !room.capabilities.submitAnswer || this.data.answerLocked || this.data.selfFinished || room.status !== 'playing') return;
+    const checked = parseAnswer(this.data.answerInput, question.answerKind);
+    if (!checked.ok) { this.setData({ answerError: checked.message }); return; }
+    this.setData({ answerError: '' });
+    return this.perform(client => client.call('submitAnswer', { roomId: room.roomId, attemptId: room.attemptId, questionId: question.id, answer: checked.text }), '本题已提交并锁定，统一结算后查看对错。');
+  },
+  finishMatch() {
+    const room = this.data.room;
+    if (this._busy || this._confirming || this.data.pendingAction || !room || room.status !== 'playing' || this.data.selfFinished || !room.capabilities.finish) return;
+    this._confirming = true; const epoch = this._epoch;
+    wx.showModal({ title: '确认交卷？', content: '仅已确认提交的' + this.data.submittedCount + '道题计入作答。未提交输入不计分；交卷后不能继续答题，双方交卷或时间到后公布成绩。', confirmText: '确认交卷',
+      success: result => {
+        this._confirming = false;
+        if (this._alive && epoch === this._epoch && result.confirm) this.perform(client => client.call('finish', { roomId: room.roomId, attemptId: room.attemptId }), '已交卷，等待伙伴或截止时间。');
+      }, fail: () => { this._confirming = false; } });
+  },
+  saveMatchResult() {
+    const room = this.data.room, result = room && room.result;
+    if (!result || this._savedResultId === result.recordId) return;
+    const saved = saveRecord({ practiceId: result.recordId, createdAt: result.finishedAt, ruleId: room.config.ruleId,
+      ruleVersion: room.config.ruleVersion, config: room.config, configText: configSummary(room.config) + ' · 双人比赛',
+      kind: 'match', match: { roomId: room.roomId, attemptId: room.attemptId, outcome: result.outcome, scores: result.scores, selfRole: result.selfRole, resultVersion: result.version }, items: result.items });
+    if (saved.ok) this._savedResultId = result.recordId;
+    this.setData({ resultSaved: saved.ok, resultSaveText: saved.ok ? '本人成绩已保存到本机记录。' : '本机保存失败，可重试：' + saved.error });
+  },
+  openMatchRecord() {
+    if (!this.data.matchResult) return;
+    this.saveMatchResult();
+    if (this.data.resultSaved) openPage('/pages/result/result?id=' + encodeURIComponent(this.data.matchResult.recordId));
+  },
+  goHome() { wx.reLaunch({ url: '/pages/home/home' }); },
   backToMatchSettings() {
-    if (this._busy || this._confirming || this.data.pendingAction || this.data.source !== 'live' || this.data.stage !== 'awaiting_result') return;
+    if (this._busy || this._confirming || this.data.pendingAction || this.data.source !== 'live' || !this.data.canReturnMatch) return;
     const room = this.data.room;
     try { wx.setStorageSync(SAVED_ROOM, room.roomId); }
     catch (_) { this.applyError({ code: 'LOCAL_STORAGE_FAILED' }); return; }
-    if (!this.showEntry('create')) return;
+    if (!this.showEntry('create', true)) return;
     const config = roomConfig(room.config).value, ruleChoices = getRulesForGrade(config.grade);
     this.setData({ savedRoomId: room.roomId, config, ruleChoices,
       ruleIndex: ruleChoices.findIndex(rule => rule.id === config.ruleId), countText: String(config.count),
       configSummary: configSummary(config), editConfig: true,
-      notice: '已返回比赛设置。上一场仍在等待结算，可通过下方入口重新查看。' });
+      notice: '已返回比赛设置。上一场比赛可通过下方入口重新查看。' });
   },
   resumeSavedRoom() {
     if (this._busy || this._confirming || this.data.pendingAction || this.hasActiveRoom() || this.data.source !== 'live' || !this.data.savedRoomId) return;
@@ -201,9 +277,9 @@ Page({
       return response;
     }, '已读取上一场比赛的当前状态。');
   },
-  showEntry(stage) {
+  showEntry(stage, returnedMatch = false) {
     if (this._busy || this._confirming) return;
-    if (this.data.pendingAction || this.hasActiveRoom()) {
+    if (this.data.pendingAction || this.hasActiveRoom() && !(returnedMatch && this.data.canReturnMatch)) {
       this.setData({ notice: '请先重试未确认操作，或恢复连接后退出原房间。' }); return;
     }
     if (this.data.source === 'live') {

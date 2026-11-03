@@ -48,3 +48,8 @@ page { background: #f5f7fa; color: #192536; font-family: -apple-system, BlinkMac
 .demo-grid { display: flex; flex-wrap: wrap; margin: 0 -6rpx; }
 .room-page .demo-tool { width: calc(50% - 12rpx); flex: none; margin: 12rpx 6rpx 0; font-size: 23rpx; color: #526173; background: #fff; border-color: #dce2e9; }
 .room-question { padding: 16rpx 0; border-bottom: 1rpx solid #e8ecef; font-size: 32rpx; line-height: 1.5; overflow-wrap: anywhere; }
+.match-question { font-size: 46rpx; font-weight: 700; line-height: 1.6; margin: 28rpx 0; word-break: break-word; }
+.match-answer { width: 100%; box-sizing: border-box; height: 96rpx; background: #eef7f4; border: 2rpx solid #8abfb3; border-radius: 18rpx; padding: 0 22rpx; font-size: 38rpx; }
+.match-playing .room-centered { padding-top: 0; }
+.match-playing .room-subtitle { margin-bottom: 10rpx; }
+.match-playing .room-summary { margin: 12rpx 0; }

@@ -46,11 +46,11 @@ test('server persists one private set before the three-second start and returns 
   assert.equal(a.status, 'playing'); assert.deepEqual(a.questions, b.questions);
   assert.equal(a.questions.length, 10); assert.equal(a.version, room.version);
   a.questions.forEach(q => assert.deepEqual(Object.keys(q).sort(), ['answerKind','id','index','ruleId','text']));
-  assert.equal(a.capabilities.submitAnswer, false);
+  assert.equal(a.capabilities.submitAnswer, true);
   error(await f.call('c', 'get', { roomId: room.roomId }), 'NOT_MEMBER');
   f.advance(60000);
-  assert.equal((await f.call('a', 'get', { roomId: room.roomId })).data.room.status, 'awaiting_result');
-  error(await f.call('a', 'finish', { roomId: room.roomId, attemptId: room.attemptId }), 'FEATURE_NOT_READY');
+  assert.equal((await f.call('a', 'get', { roomId: room.roomId })).data.room.status, 'finished');
+  assert.equal((await f.call('a', 'finish', { roomId: room.roomId, attemptId: room.attemptId })).ok, true);
 });
 
 test('cancel keeps room and two members, clears readiness and removes private questions; restart uses a new batch', async () => {

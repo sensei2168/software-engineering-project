@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const contract = require('./rules.generated.json');
 const { createQuestions, publicQuestion } = require('./question-set');
+const referee = require('./referee');
 
 const APP_ID = 'wxeeac1150bc72adb2';
 const WAIT_MS = 10 * 60 * 1000;
@@ -63,11 +64,17 @@ function parse(event) {
   if (action === 'get') {
     fields(payload, ['roomId'], '查询参数'); return { action, payload: { roomId: roomId(payload.roomId) } };
   }
-  if (action === 'submitAnswer' || action === 'finish') {
-    fail('FEATURE_NOT_READY', '本轮已提供开赛与取消；答题提交和裁判结算尚未接入');
-  }
-  if (!['create', 'join', 'setReady', 'leave', 'start', 'cancelStart'].includes(action)) fail('UNKNOWN_ACTION', '不支持的房间操作');
+  if (!['create', 'join', 'setReady', 'leave', 'start', 'cancelStart', 'submitAnswer', 'finish'].includes(action)) fail('UNKNOWN_ACTION', '不支持的房间操作');
   const id = requestId(event.requestId);
+  if (action === 'submitAnswer' || action === 'finish') {
+    fields(payload, action === 'finish' ? ['roomId', 'attemptId'] : ['roomId', 'attemptId', 'questionId', 'answer'], '答题参数');
+    const value = { roomId: roomId(payload.roomId), attemptId: attemptId(payload.attemptId) };
+    if (action === 'submitAnswer') {
+      if (typeof payload.questionId !== 'string' || !/^q_[1-9]\d?$/.test(payload.questionId) || typeof payload.answer !== 'string' || payload.answer.length > 24) fail('INVALID_ARGUMENT', '题目编号或答案格式无效');
+      value.questionId = payload.questionId; value.answer = payload.answer;
+    }
+    return { action, requestId: id, payload: value };
+  }
   if (action === 'create') {
     fields(payload, ['config'], '创建参数'); return { action, requestId: id, payload: { config: config(payload.config) } };
   }
@@ -117,19 +124,23 @@ function createRoomService({ store, now = Date.now, randomCode = () => String(cr
   }
   function snapshot(room, userId, time) {
     const own = member(room, userId);
-    const status = state(room, time), active = room.status === 'active' ? room.attempt : null;
+    const status = state(room, time), active = ['active', 'finished'].includes(room.status) ? room.attempt : null;
     return { roomId: room.roomId, code: room.code, status, version: room.version,
       config: copy(room.config), createdAt: room.createdAt, expiresAt: room.expiresAt,
       attemptId: active ? active.attemptId : null, startAt: active ? active.startAt : null,
       endAt: active ? active.endAt : null, selfRole: own.role,
       engineVersion: active ? active.engineVersion : null,
       questions: active && time >= active.startAt ? active.questions.map(publicQuestion) : [],
-      capabilities: { start: true, cancelStart: true, submitAnswer: false, finish: false },
+      capabilities: { start: true, cancelStart: true, submitAnswer: true, finish: true },
+      progress: active ? referee.progress(room, userId) : null,
+      result: active ? referee.resultFor(room, userId) : null,
       members: room.members.map(item => ({ role: item.role, ready: item.ready, isSelf: item.userId === userId })) };
   }
   async function get(tx, id, userId) {
     const room = available(await tx.get(COLLECTIONS.rooms, id), now());
-    member(room, userId); return room;
+    member(room, userId);
+    if (referee.settle(room, now())) await write(tx, room);
+    return room;
   }
   function mustWait(room) {
     if (state(room, now()) === 'expired') fail('ROOM_EXPIRED', '房间等待时间已结束，请重新创建');
@@ -191,6 +202,29 @@ function createRoomService({ store, now = Date.now, randomCode = () => String(cr
             }
           } else {
             room = await get(tx, input.payload.roomId, userId);
+            if (input.action === 'submitAnswer' || input.action === 'finish') {
+              if (!room.attempt || room.attempt.attemptId !== input.payload.attemptId) fail('ATTEMPT_MISMATCH', '比赛批次已变化，请刷新');
+              appliedAttemptId = room.attempt.attemptId;
+              const time = now();
+              if (referee.settle(room, time)) await write(tx, room);
+              if (room.status === 'finished' && input.action === 'submitAnswer') {
+                return { rejected: { code: 'MATCH_ENDED', message: '比赛已经结束，此答案未被计入，请查看成绩。' } };
+              }
+              if (room.status !== 'finished') {
+                if (room.status !== 'active' || time < room.attempt.startAt) fail('MATCH_NOT_STARTED', '比赛尚未开始');
+                const player = referee.ownPlayer(room, userId);
+                if (input.action === 'submitAnswer') {
+                  if (player.finishedAt !== null) fail('ALREADY_FINISHED', '你已交卷，不能继续作答');
+                  const question = room.attempt.questions.find(q => q.id === input.payload.questionId);
+                  if (!question) fail('QUESTION_NOT_FOUND', '本场没有这道题');
+                  if (player.answers[question.id]) fail('ANSWER_LOCKED', '该题已经提交并锁定，不能改答');
+                  const judged = referee.judgeQuestion(question, input.payload.answer);
+                  if (!judged.ok) fail('INVALID_ANSWER', judged.message);
+                  player.answers[question.id] = { answer: judged.text, correct: judged.correct, acceptedAt: time };
+                } else if (player.finishedAt === null) player.finishedAt = time;
+                room.version++; referee.settle(room, time); await write(tx, room);
+              }
+            } else {
             if (input.action === 'cancelStart' || (input.action === 'leave' && room.status === 'active')) {
               currentAttempt(room, input.payload.attemptId);
             } else mustWait(room);
@@ -234,6 +268,7 @@ function createRoomService({ store, now = Date.now, randomCode = () => String(cr
               }
               await write(tx, room);
             }
+            }
           }
           await tx.set(COLLECTIONS.requests, key, { fingerprint, roomId: room.roomId,
             appliedVersion: room.version, attemptId: appliedAttemptId, left, closed, purgeAt: room.purgeAt });
@@ -253,11 +288,12 @@ function createRoomService({ store, now = Date.now, randomCode = () => String(cr
       let data;
       if (input.action === 'whoami') {
         data = { userId, appId: APP_ID, environmentId: typeof context.ENV === 'string' ? context.ENV : '',
-          stage: 'p4-room-start', ruleVersion: contract.ruleVersion,
-          capabilities: { start: true, cancelStart: true, submitAnswer: false, finish: false } };
+          stage: 'p4-match-complete', ruleVersion: contract.ruleVersion,
+          capabilities: { start: true, cancelStart: true, submitAnswer: true, finish: true } };
       } else if (input.action === 'get') {
         data = await store.transaction(async tx => ({ room: snapshot(await get(tx, input.payload.roomId, userId), userId, now()) }));
       } else data = await mutate(input, userId);
+      if (data.rejected) fail(data.rejected.code, data.rejected.message);
       return { ok: true, apiVersion: 1, serverNow: now(), data };
     } catch (error) {
       if (error instanceof RoomError) return { ok: false, apiVersion: 1, serverNow: now(), error: { code: error.code, message: error.message } };
