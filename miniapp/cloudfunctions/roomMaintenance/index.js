@@ -9,7 +9,7 @@ exports.main = async event => {
   const mode = process.env.ROOM_MAINTENANCE_ENABLED === '0' ? 'off' : settings.mode;
   if (!['preview', 'delete'].includes(mode) || !allowed(event, cloud.getWXContext(), '1')) return { ok: false, error: 'MAINTENANCE_DISABLED_OR_FORBIDDEN' };
   try {
-    return await cleanExpired({ dryRun: mode !== 'delete', store: {
+    return await cleanExpired({ dryRun: mode !== 'delete', batchLimit: settings.batchLimit, store: {
       async listExpired(collection, field, cutoff, limit) {
         const result = await db.collection(collection).where({ [field]: db.command.lte(cutoff) }).limit(limit).get();
         return result.data.map(row => ({ id: row._id }));

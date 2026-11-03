@@ -1,0 +1,42 @@
+{
+  "source": "User-provided cloud console result and screenshot on 2026-11-03",
+  "platformDurationMs": null,
+  "coldStartConfirmed": false,
+  "results": [{
+    "ok": true,
+    "mode": "preview",
+    "cutoff": 1793702851619,
+    "targetCollection": "room_p2_codes",
+    "candidates": 5,
+    "attempted": 0,
+    "removed": { "room_p2_codes": 0 },
+    "batchLimit": 5,
+    "stoppedForBudget": false,
+    "elapsedMs": 152,
+    "mayHaveMore": true
+  }, {
+    "ok": true,
+    "mode": "preview",
+    "cutoff": 1793702938629,
+    "targetCollection": "room_p2_rooms",
+    "candidates": 5,
+    "attempted": 0,
+    "removed": { "room_p2_rooms": 0 },
+    "batchLimit": 5,
+    "stoppedForBudget": false,
+    "elapsedMs": 63,
+    "mayHaveMore": true
+  }, {
+    "ok": true,
+    "mode": "preview",
+    "cutoff": 1793703173643,
+    "targetCollection": "room_p2_requests",
+    "candidates": 5,
+    "attempted": 0,
+    "removed": { "room_p2_requests": 0 },
+    "batchLimit": 5,
+    "stoppedForBudget": false,
+    "elapsedMs": 84,
+    "mayHaveMore": true
+  }]
+}

@@ -11,12 +11,13 @@ function allowed(event, identity, enabled) {
 }
 const BATCH_LIMIT = 5;
 const WORK_BUDGET_MS = 1200;
-async function cleanExpired({ store, now = Date.now, dryRun = true }) {
+async function cleanExpired({ store, now = Date.now, dryRun = true, batchLimit = BATCH_LIMIT }) {
+  if (!Number.isInteger(batchLimit) || batchLimit < 1 || batchLimit > BATCH_LIMIT) throw new Error('INVALID_BATCH_LIMIT');
   const cutoff = now(), counts = {};
   // 每次只查一个集合；若以后每5分钟调度，三个集合轮流得到执行机会。
   const target = TARGETS[Math.floor(cutoff / 60000) % TARGETS.length];
   counts[target.collection] = 0;
-  const candidates = (await store.listExpired(target.collection, target.field, cutoff, BATCH_LIMIT)).slice(0, BATCH_LIMIT);
+  const candidates = (await store.listExpired(target.collection, target.field, cutoff, batchLimit)).slice(0, batchLimit);
   let attempted = 0, stoppedForBudget = false;
   if (!dryRun) {
     for (const candidate of candidates) {
@@ -33,8 +34,8 @@ async function cleanExpired({ store, now = Date.now, dryRun = true }) {
     }
   }
   return { ok: true, mode: dryRun ? 'preview' : 'delete', cutoff, targetCollection: target.collection,
-    candidates: candidates.length, attempted, removed: counts, batchLimit: BATCH_LIMIT,
+    candidates: candidates.length, attempted, removed: counts, batchLimit,
     stoppedForBudget, elapsedMs: now() - cutoff,
-    mayHaveMore: candidates.length === BATCH_LIMIT || stoppedForBudget };
+    mayHaveMore: candidates.length === batchLimit || stoppedForBudget };
 }
 module.exports = { allowed, cleanExpired, TARGETS, BATCH_LIMIT, WORK_BUDGET_MS };
