@@ -4,7 +4,7 @@
     <view class="title">口算小搭档</view>
     <view class="subtitle">每天练一练，和数字交朋友</view>
   </view>
-  <view class="status">开发预览 · 练习与比赛尚未开放</view>
+  <view class="status">开发验收版 · 比赛需联网</view>
   <view class="card">
     <view class="card-title">普通练习</view>
     <view class="note">选择题型和题量，按自己的节奏练习。</view>
@@ -18,7 +18,7 @@
   <view class="card">
     <view class="card-title">双人答题</view>
     <view class="note">和一位伙伴完成同一组题目。</view>
-    <button class="secondary" bindtap="openRoom">查看比赛页面</button>
+    <button class="secondary" bindtap="openRoom">进入双人比赛</button>
   </view>
   <button class="secondary" bindtap="openHistory">练习记录</button>
 </view>

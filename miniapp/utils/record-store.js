@@ -81,7 +81,9 @@ function stableJson(value) {
 
 function sameContent(a, b) {
   // 重试可能重新取得保存时间，但同一练习的题目、答案和配置不能改变。
-  const fields = ['id', 'schemaVersion', 'ruleId', 'ruleVersion', 'configText', 'config', 'isDevData', 'items', 'summary'];
+  const fields = ['id', 'schemaVersion', 'ruleId', 'ruleVersion', 'configText', 'config', 'isDevData', 'items', 'summary', 'kind', 'match', 'sourceRecordId'];
+  const compatible = value => Object.assign({ kind: 'practice', match: null, sourceRecordId: null }, value);
+  a = compatible(a); b = compatible(b);
   return fields.every(key => stableJson(a[key]) === stableJson(b[key]));
 }
 
@@ -157,6 +159,9 @@ function buildRecord(input) {
     // 不去查当前规则表，规则改名或调整也不会改写旧记录的说明。
     configText: (typeof input.configText === 'string' ? input.configText : ''),
     config: config,
+    kind: ['match', 'correction'].includes(input.kind) ? input.kind : 'practice',
+    match: snapshotQuestion(input.match),
+    sourceRecordId: typeof input.sourceRecordId === 'string' ? input.sourceRecordId : null,
     // 标记开发测试数据，记录列表里会显示标记，避免当成真实练习结果
     isDevData: input.isDevData === true,
     items: normalizedItems,

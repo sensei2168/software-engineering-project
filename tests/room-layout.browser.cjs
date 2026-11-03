@@ -14,6 +14,7 @@ const escape = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g,
 const evaluate = (value, data) => vm.runInNewContext(value, data, { timeout: 1000 });
 const interpolate = (value, data) => value.replace(/{{([\s\S]*?)}}/g, (_, expr) => escape(evaluate(expr, data)));
 function parse(source) {
+  source = source.replace(/<!--[\s\S]*?-->/g, '');
   const tree = { children: [] }, stack = [tree];
   for (const token of source.match(/<[^>]*>|[^<]+/g) || []) {
     if (token.startsWith('</')) { stack.pop(); continue; }
@@ -83,8 +84,12 @@ async function fixtures() {
   cases.push(['live-countdown', JSON.parse(JSON.stringify(p.data))]);
   await live.advance(3000);
   cases.push(['live-playing', JSON.parse(JSON.stringify(p.data))]);
+  p.inputAnswer({ detail: { value: '12' } }); await p.submitAnswer();
+  cases.push(['live-answer-locked', JSON.parse(JSON.stringify(p.data))]);
+  p.finishMatch(); await live.confirm(true);
+  cases.push(['live-early-finish', JSON.parse(JSON.stringify(p.data))]);
   await live.advance(120000);
-  cases.push(['live-awaiting-result', JSON.parse(JSON.stringify(p.data))]);
+  cases.push(['live-finished', JSON.parse(JSON.stringify(p.data))]);
   p.backToMatchSettings();
   cases.push(['live-returned-settings', JSON.parse(JSON.stringify(p.data))]);
   p.onUnload();
@@ -110,7 +115,7 @@ function measure() {
   const result = document.createElement('pre'); result.id = 'layout-result'; result.textContent = JSON.stringify(issues); document.body.append(result);
 }
 
-(async () => {
+async function main() {
   const tree = parse(fs.readFileSync(path.join(root, 'pages/room/room.wxml'), 'utf8'));
   const styles = fs.readFileSync(path.join(root, 'app.wxss'), 'utf8') + '\n' + fs.readFileSync(path.join(root, 'pages/room/room.wxss'), 'utf8');
   const cases = await fixtures(), pages = [], failures = [];
@@ -140,4 +145,6 @@ function measure() {
   for (const item of results) if (item.issues.length) failures.push(item);
   console.log(JSON.stringify({ cases: results.length, passed: results.length - failures.length, failures, previewDirectory: output }, null, 2));
   if (failures.length) process.exitCode = 1;
-})().catch(error => { console.error(error); process.exitCode = 1; });
+}
+module.exports = { parse, render, measure };
+if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });

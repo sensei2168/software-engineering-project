@@ -163,3 +163,4 @@
 }
 
 .save-bar.failed .save-text { color: #a43426; }
+.page button { min-height: 44px; padding: 16rpx 20rpx; line-height: 1.6; }
