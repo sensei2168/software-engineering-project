@@ -243,7 +243,18 @@ Page({
 
   /** 到截止后冻结作答：不能改答案，只能重试同一份提交。 */
   lockDeadline() {
-    if (!this.data.deadlineLocked) this.setData({ deadlineLocked: true });
+    if (!this.data.deadlineLocked) this.setData({ deadlineLocked: true, remainingText: '00:00', remainingSeconds: 0, inputFocus: false });
+  },
+
+  // 输入事件可能早于下一次tick到达，按实际截止时间拒绝迟到答案。
+  canEditAnswer() {
+    if (this.pageUnloaded || this.submitted || this.data.submitting || this.data.finished || this.data.deadlineLocked) return false;
+    if (this.isDeadlineReached()) {
+      this.lockDeadline();
+      this.submit('timeup');
+      return false;
+    }
+    return true;
   },
 
   /** 正式开试：记录开始时间，限时模式启动定时器（只在题目加载完成后调用一次）。 */
@@ -286,7 +297,7 @@ Page({
 
   /** 数字键盘输入：整数最多 4 位；小数允许一个小数点。 */
   onAnswerInput(event) {
-    if (this.data.finished || this.data.deadlineLocked) return;
+    if (!this.canEditAnswer()) return;
     const index = Number(event.currentTarget.dataset.index);
     if (!Number.isInteger(index) || index < 0 || index >= this.answers.length) return;
     const raw = event.detail.value === undefined || event.detail.value === null ? '' : String(event.detail.value);
@@ -309,7 +320,7 @@ Page({
 
   /** 分数题：分子、分母两个输入框，拼成 "n/d" 存进 answers。 */
   onFractionInput(event) {
-    if (this.data.finished || this.data.deadlineLocked) return;
+    if (!this.canEditAnswer()) return;
     const index = this.data.currentIndex;
     if (!Number.isInteger(index) || index < 0 || index >= this.answers.length) return;
     const part = event.currentTarget.dataset.part;
@@ -396,9 +407,9 @@ Page({
   },
 
   onSubmitTap() {
-    if (this.submitted || this.data.submitting) return;
+    if (this.pageUnloaded || this.submitted || this.data.submitting || this.data.finished) return;
     // 到截止后答案已冻结，只允许重试同一份提交，不再检查/修改答案
-    if (this.data.deadlineLocked) {
+    if (this.data.deadlineLocked || this.isDeadlineReached()) {
       this.submit('timeup');
       return;
     }
@@ -425,8 +436,13 @@ Page({
 
   /** 收卷：submitting / submitted 双重标记，保证同一份作答只批改、只跳转一次。 */
   async submit(finishedBy) {
-    if (this.submitted || this.data.submitting) return;
+    if (this.pageUnloaded || this.submitted || this.data.submitting || this.data.finished) return;
     if (!this.questions.length) return;
+    // 确认框等待期间也可能到时；统一修正手动入口，不依赖定时器顺序。
+    if (this.data.deadlineLocked || this.isDeadlineReached()) {
+      this.lockDeadline();
+      finishedBy = 'timeup';
+    }
     this.setData({ submitting: true });
     this.clearTimer();
     this.submitted = true;
@@ -505,7 +521,8 @@ Page({
   handleSubmitFailure(message) {
     if (this.pageUnloaded) return;
     this.submitted = false;
-    const locked = this.isDeadlineReached();
+    const locked = this.data.deadlineLocked || this.isDeadlineReached();
+    if (locked) this.lockDeadline();
     this.setData({ submitting: false, deadlineLocked: locked });
     if (locked) this.clearTimer();
     else if (this.pageActive) this.startTimerLoop();
