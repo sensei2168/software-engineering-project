@@ -6,14 +6,9 @@
   </view>
   <view class="status">开发验收版 · 比赛需联网</view>
   <view class="card">
-    <view class="card-title">普通练习</view>
-    <view class="note">选择题型和题量，按自己的节奏练习。</view>
-    <button class="primary" bindtap="openNormal">查看练习设置</button>
-  </view>
-  <view class="card">
-    <view class="card-title">限时练习</view>
-    <view class="note">选择练习时长，逐步熟悉口算节奏。</view>
-    <button class="secondary" bindtap="openTimed">查看限时设置</button>
+    <view class="card-title">单人练习</view>
+    <view class="note">选择年级、题型和题量，可自由练习，也可限时挑战。</view>
+    <button class="primary" bindtap="openPractice">进入单人练习</button>
   </view>
   <view class="card">
     <view class="card-title">双人答题</view>
