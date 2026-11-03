@@ -45,6 +45,24 @@ function gen(rule, count, sessionId) {
   });
 }
 
+/** 交换律题型的去重键：同一组数只保留一道，不关心谁在前。 */
+function canonicalFormula(q) {
+  if (q.operation === 'add') {
+    return Math.min(q.left, q.right) + '+' + Math.max(q.left, q.right);
+  }
+  if (q.operation === 'multiply') {
+    return Math.min(q.left, q.right) + 'x' + Math.max(q.left, q.right);
+  }
+  if (q.operation === 'decimal_add_sub' && q.op === 'add') {
+    return Math.min(q.leftTenths, q.rightTenths) + '+' + Math.max(q.leftTenths, q.rightTenths);
+  }
+  if (q.operation === 'fraction_add_sub' && q.op === 'add') {
+    return Math.min(q.leftNumerator, q.rightNumerator) + '+' +
+      Math.max(q.leftNumerator, q.rightNumerator) + '/' + q.denominator;
+  }
+  return q.formula;
+}
+
 function assertInRange(rule, strategy, q) {
   const op = rule.operation;
   if (op === 'add') {
@@ -57,7 +75,7 @@ function assertInRange(rule, strategy, q) {
     assert.ok(q.left >= strategy.aMin && q.left <= strategy.aMax, q.left + ' 不在被乘数范围');
     assert.ok(q.right >= strategy.bMin && q.right <= strategy.bMax, q.right + ' 不在乘数范围');
     assert.equal(q.answer, q.left * q.right);
-    if (strategy.commutative) assert.ok(q.left <= q.right, q.formula + ' 交换乘数未合并');
+    // 交换乘数只保留一道，但顺序可以随机，不要求 a <= b
   } else if (op === 'divide') {
     assert.ok(q.right >= strategy.divisorMin && q.right <= strategy.divisorMax, q.right + ' 不在除数范围');
     assert.equal(q.left % q.right, 0, q.formula + ' 不能整除');
@@ -127,7 +145,7 @@ for (const rule of IMPLEMENTED) {
   test(rule.id + '：同一次练习不重复，题号唯一', function () {
     const generated = gen(rule, 40, 'unique-' + rule.id);
     assert.equal(generated.questions.length, 40);
-    const formulas = generated.questions.map(function (q) { return q.formula; });
+    const formulas = generated.questions.map(canonicalFormula);
     assert.equal(new Set(formulas).size, formulas.length, '出现重复算式');
     const ids = generated.questions.map(function (q) { return q.id; });
     assert.equal(new Set(ids).size, ids.length, '题号重复');
@@ -236,6 +254,39 @@ test('分数题：同分母真分数、结果 0—1、加减各半', function ()
 
 // ---------------------------------------------------------------- 确定性与抽样
 
+test('单步加法交换算重复：同一套题不出现 14+2 与 2+14', function () {
+  assert.equal(generator.buildPool(strategies.getStrategy('g1_add_20')).length, 121);
+  ['g1_add_20', 'g2_add_100', 'g3_add_1000'].forEach(function (ruleId) {
+    const rule = rulesTable.getRule(ruleId);
+    for (let round = 0; round < 20; round += 1) {
+      const keys = gen(rule, 50, 'add-dedupe-' + round).questions.map(function (q) {
+        return Math.min(q.left, q.right) + ':' + Math.max(q.left, q.right);
+      });
+      assert.equal(new Set(keys).size, keys.length, ruleId + ' 第 ' + round + ' 组出现交换重复');
+    }
+  });
+});
+
+test('交换律只去重、不锁死顺序：1+2 与 2+1 都可能出现', function () {
+  const seen = new Set();
+  for (let round = 0; round < 120; round += 1) {
+    gen(rulesTable.getRule('g1_add_20'), 50, 'order-' + round).questions.forEach(function (q) {
+      seen.add(q.formula);
+    });
+  }
+  assert.ok(seen.has('1+2'), '应出现 1+2');
+  assert.ok(seen.has('2+1'), '应出现 2+1');
+});
+
+test('同一 sessionId 重复生成题目，题目顺序完全不变', function () {
+  ['g1_add_20', 'g2_multiply_table', 'g3_decimal_1place', 'g3_fraction_same_den'].forEach(function (ruleId) {
+    const rule = rulesTable.getRule(ruleId);
+    const first = gen(rule, 30, 'stable-order').questions.map(function (q) { return q.text; });
+    const second = gen(rule, 30, 'stable-order').questions.map(function (q) { return q.text; });
+    assert.deepEqual(second, first, ruleId + ' 同一 session 的题目顺序变了');
+  });
+});
+
 test('同 ruleId + sessionId 出题可复现，换 sessionId 会变', function () {
   const rule = rulesTable.getRule('g2_multiply_table');
   const a = gen(rule, 20, 'same-seed').questions.map(function (q) { return q.formula; });
@@ -252,7 +303,7 @@ test('1000 以内加法走抽样也不重复、不越界', function () {
   const seen = new Set();
   generated.questions.forEach(function (q) {
     assert.ok(q.left + q.right <= 1000);
-    seen.add(q.formula);
+    seen.add(Math.min(q.left, q.right) + ':' + Math.max(q.left, q.right));
   });
   assert.equal(seen.size, 50);
 });
