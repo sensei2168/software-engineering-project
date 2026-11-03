@@ -1,0 +1,11 @@
+{
+  "verificationDate": "2026-11-04",
+  "method": "Read-only whoami call from authenticated WeChat developer tools simulator after user-confirmed deployment",
+  "ok": true,
+  "stage": "p4-match-complete",
+  "serviceVersion": "2026-11-04.1",
+  "capabilities": { "start": true, "cancelStart": true, "submitAnswer": true, "finish": true },
+  "identified": true,
+  "environmentId": "cloud1-d6gvp9cql29a1164e",
+  "scope": "Version and capabilities only; not a new two-account match regression"
+}
