@@ -1,6 +1,6 @@
 <view class="page settings-page">
   <view class="settings-heading">这次想练什么？</view>
-  <view class="settings-description">选好年级、题型和题量，下一步核对设置。</view>
+  <view class="settings-description">选好年级、题型和题量，就可以开始练习。</view>
   <view class="selection-notice" wx:if="{{notice}}">{{notice}}</view>
   <view class="settings-panel">
     <view class="setting-group">
@@ -48,6 +48,6 @@
     </view>
   </view>
   <view class="selection-summary">已选：{{selectionSummary}}</view>
-  <button class="settings-submit" bindtap="previewPractice" hover-class="submit-pressed">确认设置，查看下一页<text class="submit-arrow">→</text></button>
-  <view class="settings-footnote">当前为设置预览，下一页可核对参数，暂不生成题目。</view>
+  <button class="settings-submit" bindtap="previewPractice" hover-class="submit-pressed">开始练习<text class="submit-arrow">→</text></button>
+  <view class="settings-footnote">题目显示后开始作答；退出答题页或关闭小程序会结束本次未交卷练习。</view>
 </view>

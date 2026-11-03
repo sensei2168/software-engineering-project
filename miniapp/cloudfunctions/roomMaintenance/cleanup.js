@@ -9,20 +9,33 @@ function allowed(event, identity, enabled) {
     !identity.OPENID && !identity.FROM_OPENID && !identity.UNIONID && !identity.TCB_UUID &&
     !['wx_client', 'wx_devtools', 'wx_http', 'http'].includes(identity.SOURCE);
 }
-async function cleanExpired({ store, now = Date.now }) {
+const BATCH_LIMIT = 5;
+const WORK_BUDGET_MS = 1200;
+async function cleanExpired({ store, now = Date.now, dryRun = true, batchLimit = BATCH_LIMIT }) {
+  if (!Number.isInteger(batchLimit) || batchLimit < 1 || batchLimit > BATCH_LIMIT) throw new Error('INVALID_BATCH_LIMIT');
   const cutoff = now(), counts = {};
-  for (const target of TARGETS) {
-    counts[target.collection] = 0;
-    const candidates = await store.listExpired(target.collection, target.field, cutoff, 20);
+  // 每次只查一个集合；若以后每5分钟调度，三个集合轮流得到执行机会。
+  const target = TARGETS[Math.floor(cutoff / 60000) % TARGETS.length];
+  counts[target.collection] = 0;
+  const candidates = (await store.listExpired(target.collection, target.field, cutoff, batchLimit)).slice(0, batchLimit);
+  let attempted = 0, stoppedForBudget = false;
+  if (!dryRun) {
     for (const candidate of candidates) {
+      // 协作式预算只限制新操作；不能保证已发出的数据库请求在3秒内返回。
+      if (now() - cutoff >= WORK_BUDGET_MS) { stoppedForBudget = true; break; }
+      attempted++;
       const removed = await store.transaction(async tx => {
         const current = await tx.get(target.collection, candidate.id);
         if (!current || !Number.isFinite(current[target.field]) || current[target.field] > cutoff) return false;
+        if (now() - cutoff >= WORK_BUDGET_MS) { stoppedForBudget = true; return false; }
         await tx.remove(target.collection, candidate.id); return true;
       });
       if (removed) counts[target.collection]++;
     }
   }
-  return { ok: true, cutoff, removed: counts, batchLimitPerCollection: 20 };
+  return { ok: true, mode: dryRun ? 'preview' : 'delete', cutoff, targetCollection: target.collection,
+    candidates: candidates.length, attempted, removed: counts, batchLimit,
+    stoppedForBudget, elapsedMs: now() - cutoff,
+    mayHaveMore: candidates.length === batchLimit || stoppedForBudget };
 }
-module.exports = { allowed, cleanExpired, TARGETS };
+module.exports = { allowed, cleanExpired, TARGETS, BATCH_LIMIT, WORK_BUDGET_MS };

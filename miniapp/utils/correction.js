@@ -5,11 +5,17 @@ function selectedItems(record) {
 }
 function gradeCorrection(item, raw) {
   if (!raw.trim()) return { ok: true, status: 'unanswered', answer: '' };
-  if (item.question && ['integer', 'decimal', 'fraction'].includes(item.question.answerKind)) {
-    const judged = judgeQuestion(item.question, raw);
-    return judged.ok ? { ok: true, status: judged.correct ? 'correct' : 'wrong', answer: judged.text } : judged;
+  const question = item.question;
+  const fields = question && ({ integer: ['answer'], decimal: ['answerTenths'], fraction: ['answerNumerator', 'answerDenominator'] })[question.answerKind];
+  if (fields && fields.every(field => question[field] !== undefined && question[field] !== null)) {
+    try {
+      const judged = judgeQuestion(question, raw);
+      return judged.ok ? { ok: true, status: judged.correct ? 'correct' : 'wrong', answer: judged.text } : judged;
+    } catch (_) {
+      return { ok: false, message: '原记录的标准答案数据异常，请重新练习该题型。' };
+    }
   }
-  // 旧历史没有结构化原题时，只比较原记录中的标准答案；不猜测或重新生成原题。
+  // 单人整数/混合快照未包含answer，旧历史也可能无快照；比较保存的标准答案，不重新出题。
   const left = parseAnswer(raw, 'fraction'), right = parseAnswer(String(item.correctAnswer), 'fraction');
   if (!left.ok) return left;
   if (!right.ok) return { ok: false, message: '旧记录的标准答案格式无法订正，请重新练习该题型。' };
