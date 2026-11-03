@@ -6,6 +6,11 @@ const record={practiceId:'original',kind:'match',match:{outcome:'win',scores:[],
   {expression:'1.2 + 0.5 = ?',question:{answerKind:'decimal',answerTenths:17},correctAnswer:'1.7',userAnswer:'1.74',status:'wrong'},
   {expression:'1/4 + 1/4 = ?',question:{answerKind:'fraction',answerNumerator:2,answerDenominator:4},correctAnswer:'2/4',userAnswer:'',status:'unanswered'},
   {expression:'0 + 0 = ?',question:{answerKind:'integer',answer:0},correctAnswer:'0',userAnswer:'0',status:'correct'}]};
+test('incomplete practice snapshots use saved answer; malformed complete snapshots return a visible error',()=>{
+  assert.equal(gradeCorrection({question:{answerKind:'integer',tokens:[1,'+',1]},correctAnswer:'2'},'2').status,'correct');
+  assert.equal(gradeCorrection({question:{answerKind:'integer',answer:'broken'},correctAnswer:'2'},'2').ok,false);
+  assert.equal(gradeCorrection({question:{answerKind:'integer'},correctAnswer:'broken'},'2').ok,false);
+});
 test('correction selects only mistakes and missing answers, grades exact equivalents and keeps blank separate',()=>{
   assert.equal(selectedItems(record).length,2);
   assert.equal(gradeCorrection(record.items[0],'1.74').status,'wrong');assert.equal(gradeCorrection(record.items[0],'1.700').status,'correct');

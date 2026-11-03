@@ -289,7 +289,7 @@ function createRoomService({ store, now = Date.now, randomCode = () => String(cr
       let data;
       if (input.action === 'whoami') {
         data = { userId, appId: APP_ID, environmentId: typeof context.ENV === 'string' ? context.ENV : '',
-          stage: 'p4-match-complete', serviceVersion: '2026-11-03.2', ruleVersion: contract.ruleVersion,
+          stage: 'p4-match-complete', serviceVersion: '2026-11-04.1', ruleVersion: contract.ruleVersion,
           capabilities: { start: true, cancelStart: true, submitAnswer: true, finish: true } };
       } else if (input.action === 'get') {
         data = await store.transaction(async tx => ({ room: snapshot(await get(tx, input.payload.roomId, userId), userId, now()) }));

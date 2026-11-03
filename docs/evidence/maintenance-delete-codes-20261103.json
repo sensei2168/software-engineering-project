@@ -1,0 +1,17 @@
+{
+  "source": "User-provided cloud console result",
+  "platformDurationMs": null,
+  "result": {
+    "ok": true,
+    "mode": "delete",
+    "cutoff": 1793703366560,
+    "targetCollection": "room_p2_codes",
+    "candidates": 1,
+    "attempted": 1,
+    "removed": { "room_p2_codes": 1 },
+    "batchLimit": 1,
+    "stoppedForBudget": false,
+    "elapsedMs": 468,
+    "mayHaveMore": true
+  }
+}
