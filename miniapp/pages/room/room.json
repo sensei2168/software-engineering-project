@@ -1,1 +1,5 @@
-{"navigationBarTitleText":"双人答题"}
+{
+  "navigationBarTitleText": "双人比赛",
+  "navigationBarBackgroundColor": "#F5F7FA",
+  "backgroundColor": "#F5F7FA"
+}

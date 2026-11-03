@@ -1,4 +1,5 @@
 // 已确认的 V2 设置预设。这里只描述题型，不生成题目或执行判题。
+const RULE_VERSION = '2026-10-27.1';
 const GRADES = [
   { value: 1, label: '一年级' },
   { value: 2, label: '二年级' },
@@ -95,4 +96,4 @@ function getGradeLabel(grade) {
   return item ? item.label : '';
 }
 
-module.exports = { GRADES, RULE_GROUPS, RULES, getRule, getRulesForGrade, getGradeLabel };
+module.exports = { RULE_VERSION, GRADES, RULE_GROUPS, RULES, getRule, getRulesForGrade, getGradeLabel };
