@@ -9,14 +9,16 @@
  *    不会静默降级成别的题型。
  * 4. 逐题作答，答案存在 answers 数组里，空字符串表示未答。
  * 5. 提交时把「题目 + 作答」交给同一套判分逻辑，拿到 result。
- * 6. 交卷后留在本页进入只读回顾：题号方块按对/错/未答分色，点击回看你的答案与正确答案；
- *    结果仍通过 eventChannel + pendingPracticeResult 交给结果页。
- * 7. 底部「题目导航」在作答和回顾阶段都能点击跳转。
+ * 6. 交卷后留在本页进入只读回顾：题号方块按对/错/未答分色，点击回看你的答案与正确答案。
+ * 7. 点「查看结果」时，把 result 转成 main 约定的 practice-session / items 结构，
+ *    由结果页负责保存记录；不再使用单独的 pendingPracticeResult 缓存。
+ * 8. 底部「题目导航」在作答和回顾阶段都能点击跳转。
  *
  * 限时模式：第一题出现时开始计时，时间到自动收卷；提交后立即停表。
  * submitting / submitted 标记保证「手动提交」和「到时自动提交」只会产生一份结果。
  */
 const { fromQuery, toQuery, getConfigDisplay } = require('../../utils/practice-config');
+const { setPendingResult } = require('../../utils/practice-session');
 const questionService = require('../../services/question-service');
 
 const TIMER_INTERVAL_MS = 250;
@@ -44,6 +46,24 @@ function answerPartOf(correctText) {
   const text = String(correctText || '');
   const index = text.lastIndexOf('= ');
   return index === -1 ? text : text.slice(index + 2);
+}
+
+/** 结果页的 expression 不带 "= ?"，这里从题干里去掉。 */
+function expressionOf(text) {
+  return String(text || '').replace(/\s*=\s*\?$/, '').trim();
+}
+
+/** 把一道批改结果转成结果页的 items 项。 */
+function toPendingItem(item) {
+  return {
+    expression: expressionOf(item.text || item.formula || ''),
+    // 结构化原题快照：混合题的 tokens、分数题的分子分母、小数题的十分之一整数
+    question: item.question || { kind: item.answerKind || 'integer', text: item.text },
+    // 保留用户原输入：0 是有效作答，空白才是未答
+    userAnswer: item.userText === undefined || item.userText === null ? '' : String(item.userText),
+    correctAnswer: String(item.correctAnswer),
+    status: item.verdict === 'blank' ? 'unanswered' : item.verdict
+  };
 }
 
 Page({
@@ -92,6 +112,7 @@ Page({
     this.tickTimer = null;
     this.pageActive = true;
     this.result = null;
+    this.ruleVersion = '';
 
     const parsed = fromQuery(options);
     if (!parsed.ok) {
@@ -152,6 +173,7 @@ Page({
       const answers = data.questions.map(function () { return ''; });
       this.questions = data.questions;
       this.answers = answers;
+      this.ruleVersion = data.ruleVersion || '';
       this.setData({
         loading: false,
         loadError: '',
@@ -365,6 +387,8 @@ Page({
     const payload = {
       quizId: this.data.quizId,
       config: this.config,
+      // 生成时固定的规则版本，原样带回，避免保存时用新规则表重算
+      ruleVersion: this.ruleVersion,
       answers: buildAnswersView(this.answers),
       durationSeconds: durationSeconds,
       finishedBy: finishedBy === 'timeup' ? 'timeup' : 'manual'
@@ -386,11 +410,6 @@ Page({
       const result = response.data.result;
       console.log('[practice] 批改结果（' + response.source + '）', result);
       this.result = result;
-      try {
-        wx.setStorageSync('pendingPracticeResult', result);
-      } catch (error) {
-        console.warn('[practice] 结果缓存失败', error);
-      }
       this.setData({
         submitting: false,
         finished: true,
@@ -419,15 +438,27 @@ Page({
     }
   },
 
-  /** 回顾状态：点题号跳转；结果页仍由彭方鑫负责，这里只负责把 result 交出去。 */
+  /** 把本页的批改结果转成结果页/记录页约定的结构。 */
+  buildPendingResult(result) {
+    return {
+      practiceId: result.quizId,
+      isDevData: false,
+      ruleId: result.ruleId,
+      // 生成时固定的版本；旧结果没有该字段时退回出题时的版本
+      ruleVersion: result.ruleVersion || this.ruleVersion || '',
+      config: this.config,
+      createdAt: Date.now(),
+      items: (result.questions || []).map(toPendingItem)
+    };
+  },
+
+  /** 回顾状态：点「查看结果」时按 practice-session 协议交给结果页；保存与去重由结果页负责。 */
   openResultPage() {
     const result = this.result;
     if (!result) return;
+    setPendingResult(this.buildPendingResult(result));
     wx.navigateTo({
       url: '/pages/result/result',
-      success: (res) => {
-        if (res.eventChannel) res.eventChannel.emit('result', result);
-      },
       fail: () => {
         wx.showToast({ title: '结果页打开失败，可稍后在记录里查看', icon: 'none' });
       }

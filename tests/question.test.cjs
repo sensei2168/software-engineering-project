@@ -546,6 +546,7 @@ test('createQuestionSet -> submitAnswers 走通（乘法），结果带 ruleId�
     payload: {
       quizId: created.data.quizId,
       config: config,
+      ruleVersion: rulesTable.RULE_VERSION,
       questions: questions,
       answers: answers,
       durationSeconds: 42,
@@ -555,12 +556,36 @@ test('createQuestionSet -> submitAnswers 走通（乘法），结果带 ruleId�
   assert.equal(submitted.ok, true, submitted.message);
   const r = submitted.data.result;
   assert.equal(r.ruleId, rule.id);
+  assert.equal(r.ruleVersion, rulesTable.RULE_VERSION);
   assert.equal(r.grade, rule.grade);
   assert.equal(r.blank, 1);
   assert.equal(r.wrong, 1);
   assert.equal(r.correct, 8);
   assert.equal(r.durationSeconds, 42);
   assert.equal(r.finishedBy, 'timeup');
+});
+
+test('批改结果保留规则版本和结构化原题快照', function () {
+  const mixed = gen(rulesTable.getRule('g3_mixed_2step'), 10, 'snapshot-mixed').questions[0];
+  const mixedResult = scoring.gradeAnswers({
+    questions: [mixed], answers: [mixed.answer], ruleVersion: rulesTable.RULE_VERSION
+  }).result;
+  assert.equal(mixedResult.ruleVersion, rulesTable.RULE_VERSION);
+  assert.equal(mixedResult.questions[0].question.kind, 'integer');
+  assert.ok(Array.isArray(mixedResult.questions[0].question.tokens));
+  assert.equal(mixedResult.questions[0].question.tokens.length, 5);
+
+  const decimal = gen(rulesTable.getRule('g3_decimal_1place'), 10, 'snapshot-decimal').questions[0];
+  const decimalResult = scoring.gradeAnswers({ questions: [decimal], answers: [decimal.answer] }).result;
+  assert.equal(decimalResult.questions[0].question.kind, 'decimal');
+  assert.equal(decimalResult.questions[0].question.answerTenths, decimal.answerTenths);
+  assert.ok(Number.isInteger(decimalResult.questions[0].question.leftTenths));
+
+  const fraction = gen(rulesTable.getRule('g3_fraction_same_den'), 10, 'snapshot-fraction').questions[0];
+  const fractionResult = scoring.gradeAnswers({ questions: [fraction], answers: [fraction.answer] }).result;
+  assert.equal(fractionResult.questions[0].question.kind, 'fraction');
+  assert.equal(fractionResult.questions[0].question.denominator, fraction.denominator);
+  assert.equal(fractionResult.questions[0].question.answerNumerator, fraction.answerNumerator);
 });
 
 test('submitAnswers 拒绝被篡改的题目和数量不一致', function () {

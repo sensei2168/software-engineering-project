@@ -121,6 +121,30 @@ function correctAnswerValue(question) {
   return Number(question.answer);
 }
 
+/**
+ * 结构化原题快照：保存生成时的题型、操作数/分子分母/tokens 等，
+ * 历史记录只读这份快照，不用当前规则表反推旧题。
+ */
+function snapshotQuestion(question) {
+  const source = question || {};
+  const snapshot = {
+    kind: source.answerKind || 'integer',
+    id: source.id,
+    ruleId: source.ruleId,
+    operation: source.operation,
+    answerKind: source.answerKind || 'integer',
+    text: source.text,
+    formula: source.formula
+  };
+  ['left', 'right', 'leftTenths', 'rightTenths', 'answerTenths', 'op',
+    'leftNumerator', 'rightNumerator', 'denominator', 'answerNumerator', 'answerDenominator'
+  ].forEach(function (key) {
+    if (source[key] !== undefined) snapshot[key] = source[key];
+  });
+  if (Array.isArray(source.tokens)) snapshot.tokens = source.tokens.slice();
+  return snapshot;
+}
+
 function summarize(results) {
   let correct = 0;
   let wrong = 0;
@@ -222,6 +246,8 @@ function gradeAnswers(input) {
       correctAnswer: correctAnswerValue(question),
       verdict: verdict,
       reason: reason,
+      // 结构化原题快照，供结果页/历史记录还原，不依赖当前规则表
+      question: snapshotQuestion(question),
       correctText: buildEquation(question, correctAnswerText(question))
     });
   }
@@ -236,6 +262,7 @@ function gradeAnswers(input) {
       version: 1,
       quizId: source.quizId ? String(source.quizId) : '',
       ruleId: source.ruleId || (results.length ? results[0].ruleId : '') || '',
+      ruleVersion: source.ruleVersion ? String(source.ruleVersion) : '',
       grade: Number.isInteger(Number(source.grade)) ? Number(source.grade) : null,
       operation: operation,
       config: source.config || null,
@@ -263,6 +290,7 @@ module.exports = {
   parseAnswer,
   isAnswerCorrect,
   correctAnswerText,
+  snapshotQuestion,
   summarize,
   gradeAnswers
 };

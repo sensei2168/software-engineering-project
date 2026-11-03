@@ -8,9 +8,9 @@
  * 两位数÷一位数。混合运算、小数、分数明确返回 UNSUPPORTED_RULE，
  * 不会静默降级成别的题型。
  */
-const { getRule, getGradeLabel } = require('../practice-rules');
+const { RULE_VERSION, getRule, getGradeLabel } = require('../practice-rules');
 const { getStrategy } = require('./rule-strategies');
-const { hashSeed, generateQuestions, validateQuestionSpec, toPublicQuestion } = require('./generator');
+const { generateQuestions, validateQuestionSpec, toPublicQuestion } = require('./generator');
 const { gradeAnswers } = require('./scoring');
 
 const MAX_COUNT = 50;
@@ -76,11 +76,6 @@ function sanitizeConfig(raw) {
   };
 }
 
-/** 规则版本：规则表变化后同一个 ruleId 的版本号也会变，便于历史题还原。 */
-function ruleVersionOf(rule) {
-  return hashSeed([rule.id, rule.operation, rule.limit].join('|')).toString(36);
-}
-
 /**
  * createQuestionSet：按设置出题，返回给客户端的题目里没有答案。
  *
@@ -120,7 +115,8 @@ function createQuestionSet(payload, options) {
   const data = {
     quizId: generated.sessionId,
     config: config,
-    ruleVersion: ruleVersionOf(rule),
+    // 规则版本统一取题型目录的 RULE_VERSION；生成时固定，收卷时由页面原样带回
+    ruleVersion: RULE_VERSION,
     engineVersion: generated.engineVersion,
     questions: generated.questions.map(toPublicQuestion)
   };
@@ -176,6 +172,7 @@ function submitAnswers(payload) {
     answers: answers,
     quizId: pickString(source.quizId, ''),
     ruleId: config ? config.ruleId : '',
+    ruleVersion: pickString(source.ruleVersion, '') || RULE_VERSION,
     grade: config ? config.grade : undefined,
     operation: config ? config.operation : undefined,
     config: config,
@@ -202,8 +199,8 @@ function handleRequest(request) {
 module.exports = {
   MAX_COUNT,
   MIN_COUNT,
+  RULE_VERSION,
   sanitizeConfig,
-  ruleVersionOf,
   createQuestionSet,
   submitAnswers,
   handleRequest
