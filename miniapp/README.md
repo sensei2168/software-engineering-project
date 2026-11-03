@@ -146,7 +146,7 @@ node scripts/sync-room-contract.cjs --check # 核对前后端题型配置
 ```
 
 当前包含：结果与记录 40 项、房间与联调页、设置 39 项、出题判分 66 项、答题页导航 3 项、
-答题→结果→记录贯通 2 项、限时失败重试 4 项，全量共 304 项。
+答题→结果→记录贯通 2 项、限时失败重试 6 项、出题响应生命周期 3 项，全量共 309 项。
 测试没有连接真实云环境，不替代微信开发者工具和真机验证。
 
 布局回归可运行 `node tests/settings-layout.browser.cjs` 和 `node tests/room-layout.browser.cjs`，

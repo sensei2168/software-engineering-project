@@ -119,7 +119,7 @@ test('到截止后提交失败：答案冻结，只能重试同一份提交', as
   try {
     await loadTimedPage(page);
     fillAllCorrect(page);
-    page.startTime = Date.now() - 61000; // 已经超过 60 秒
+    page.startTime = Date.now() - 60000; // 恰好达到 60 秒截止
     service.submitAnswers = async () => ({ ok: false, code: 'MOCK', message: '模拟批改失败' });
 
     page.onSubmitTap();
@@ -140,6 +140,69 @@ test('到截止后提交失败：答案冻结，只能重试同一份提交', as
     assert.equal(page.data.finished, true);
     assert.equal(page.result.finishedBy, 'timeup');
     assert.equal(storage[STORAGE_KEY].length, 1);
+  } finally {
+    service.submitAnswers = original;
+    page.onUnload();
+  }
+});
+
+test('提前提交抛异常：恢复倒计时，仍可继续作答', async function () {
+  const original = service.submitAnswers;
+  const { page } = createHarness();
+  try {
+    await loadTimedPage(page);
+    fillAllCorrect(page);
+    service.submitAnswers = async () => { throw new Error('模拟网络异常'); };
+
+    page.onSubmitTap();
+    await wait(250);
+    assert.equal(page.data.deadlineLocked, false);
+    assert.equal(page.data.submitting, false);
+    assert.equal(page.submitted, false);
+    assert.ok(page.tickTimer);
+
+    service.submitAnswers = original;
+    page.onSubmitTap();
+    await wait(450);
+    assert.equal(page.data.finished, true);
+  } finally {
+    service.submitAnswers = original;
+    page.onUnload();
+  }
+});
+
+test('后台收到批改成功：保留结果，回前台直接展示', async function () {
+  const original = service.submitAnswers;
+  const { page, storage } = createHarness();
+  try {
+    await loadTimedPage(page);
+    fillAllCorrect(page);
+    const real = await original({
+      quizId: page.data.quizId,
+      config: page.config,
+      ruleVersion: page.ruleVersion,
+      answers: page.answers,
+      durationSeconds: 1,
+      finishedBy: 'manual'
+    });
+    assert.equal(real.ok, true);
+
+    let resolveSubmit = null;
+    service.submitAnswers = () => new Promise((resolve) => { resolveSubmit = resolve; });
+    page.onSubmitTap();
+    await wait(50);
+    page.onHide();
+    resolveSubmit(real);
+    await wait(120);
+
+    assert.equal(page.data.submitting, false);
+    assert.equal(page.data.finished, true);
+    assert.equal(page.result.total, 10);
+    assert.equal(storage[STORAGE_KEY].length, 1);
+
+    page.onShow();
+    assert.equal(page.data.finished, true);
+    assert.equal(page.data.reviewMode, true);
   } finally {
     service.submitAnswers = original;
     page.onUnload();

@@ -178,7 +178,8 @@ Page({
   async loadQuiz() {
     try {
       const response = await questionService.createQuestionSet(this.config);
-      if (!this.pageActive) return;
+      // 后台隐藏时也要保留本次响应；只有页面已卸载才丢弃，避免恢复后永久 loading
+      if (this.pageUnloaded) return;
       if (!response.ok) {
         if (response.code === 'UNSUPPORTED_RULE') {
           this.setData({
@@ -222,11 +223,12 @@ Page({
       });
       this.result = null;
       this.applyQuestion(0);
-      this.beginQuiz();
+      // 后台返回时先不开始计时，等 onShow 回到前台再按原配置开始
+      if (this.pageActive) this.beginQuiz();
       console.log('[practice] 出题来源：' + response.source + '，ruleId：' + data.questions[0].ruleId + '，共 ' + data.questions.length + ' 题');
     } catch (error) {
       console.error('[practice] 出题异常', error);
-      if (this.pageActive) this.setData({ loading: false, loadError: '出题失败，请检查网络后重试。' });
+      if (!this.pageUnloaded) this.setData({ loading: false, loadError: '出题失败，请检查网络后重试。' });
     }
   },
 
