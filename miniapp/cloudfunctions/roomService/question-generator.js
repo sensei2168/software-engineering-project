@@ -154,12 +154,24 @@ function buildMixedSpec(strategy, random) {
   };
 }
 
-function buildDecimalSpecs(strategy) {
+/**
+ * 交换律去重后，用同一个随机源决定展示顺序：同一组操作数只出一道，
+ * 但 14+2 与 2+14 谁在前是随机的，不会永远锁死升序。
+ */
+function orderCommutative(first, second, random) {
+  if (random && random() < 0.5) return [second, first];
+  return [first, second];
+}
+
+function buildDecimalSpecs(strategy, random) {
   const max = strategy.tenthsMax;
   const adds = [];
   const subs = [];
   for (let a = strategy.tenthsMin; a <= max; a += 1) {
-    for (let b = a; a + b <= max; b += 1) adds.push({ op: 'add', aTenths: a, bTenths: b });
+    for (let b = a; a + b <= max; b += 1) {
+      const order = orderCommutative(a, b, random);
+      adds.push({ op: 'add', aTenths: order[0], bTenths: order[1] });
+    }
   }
   for (let a = strategy.tenthsMin; a <= max; a += 1) {
     for (let b = strategy.tenthsMin; b <= a; b += 1) subs.push({ op: 'subtract', aTenths: a, bTenths: b });
@@ -167,12 +179,15 @@ function buildDecimalSpecs(strategy) {
   return { adds: adds, subs: subs };
 }
 
-function buildFractionSpecs(strategy) {
+function buildFractionSpecs(strategy, random) {
   const adds = [];
   const subs = [];
   for (let d = strategy.denominatorMin; d <= strategy.denominatorMax; d += 1) {
     for (let n1 = 1; n1 < d; n1 += 1) {
-      for (let n2 = n1; n1 + n2 <= d; n2 += 1) adds.push({ op: 'add', n1: n1, n2: n2, n3: d });
+      for (let n2 = n1; n1 + n2 <= d; n2 += 1) {
+        const order = orderCommutative(n1, n2, random);
+        adds.push({ op: 'add', n1: order[0], n2: order[1], n3: d });
+      }
       for (let n2 = 1; n2 <= n1; n2 += 1) subs.push({ op: 'subtract', n1: n1, n2: n2, n3: d });
     }
   }
@@ -180,12 +195,15 @@ function buildFractionSpecs(strategy) {
 }
 
 /** 整数题库（加减乘除）。 */
-function buildIntegerPool(strategy) {
+function buildIntegerPool(strategy, random) {
   const pairs = [];
   const operation = strategy.operation;
   if (operation === 'add') {
     for (let a = 0; a <= strategy.limit; a += 1) {
-      for (let b = a; b <= strategy.limit - a; b += 1) pairs.push({ a: a, b: b });
+      for (let b = a; b <= strategy.limit - a; b += 1) {
+        const order = orderCommutative(a, b, random);
+        pairs.push({ a: order[0], b: order[1] });
+      }
     }
     return pairs;
   }
@@ -199,7 +217,8 @@ function buildIntegerPool(strategy) {
     for (let a = strategy.aMin; a <= strategy.aMax; a += 1) {
       for (let b = strategy.bMin; b <= strategy.bMax; b += 1) {
         if (strategy.commutative && a > b) continue;
-        pairs.push({ a: a, b: b });
+        const order = strategy.commutative ? orderCommutative(a, b, random) : [a, b];
+        pairs.push({ a: order[0], b: order[1] });
       }
     }
     return pairs;
@@ -222,11 +241,11 @@ function buildIntegerPool(strategy) {
   return pairs;
 }
 
-function buildPool(strategy) {
-  if (strategy.kind === 'decimal') return buildDecimalSpecs(strategy);
-  if (strategy.kind === 'fraction') return buildFractionSpecs(strategy);
+function buildPool(strategy, random) {
+  if (strategy.kind === 'decimal') return buildDecimalSpecs(strategy, random);
+  if (strategy.kind === 'fraction') return buildFractionSpecs(strategy, random);
   if (strategy.kind === 'mixed') return null;
-  return buildIntegerPool(strategy);
+  return buildIntegerPool(strategy, random);
 }
 
 /** 大题库抽样：加法/减法在 1000 以内时使用，避免建 50 万个对象。 */
@@ -245,7 +264,8 @@ function sampleAddSubtract(strategy, count, random) {
     const key = operation === 'add' ? pairKey(Math.min(a, b), Math.max(a, b)) : pairKey(a, b);
     if (seen[key]) continue;
     seen[key] = true;
-    picked.push({ a: a, b: b });
+    const order = operation === 'add' ? orderCommutative(a, b, random) : [a, b];
+    picked.push({ a: order[0], b: order[1] });
   }
   return picked;
 }
@@ -420,7 +440,7 @@ function generateQuestions(input) {
     }
     specs = picked;
   } else if (strategy.kind === 'decimal' || strategy.kind === 'fraction') {
-    const pool = buildPool(strategy);
+    const pool = buildPool(strategy, random);
     const selected = selectBalanced(pool, count, random);
     if (!selected) {
       return { ok: false, code: 'POOL_EXHAUSTED', message: '该范围内算式不足，请把题量调小' };
@@ -432,7 +452,7 @@ function generateQuestions(input) {
     if (largeAddSubtract) {
       specs = sampleAddSubtract(strategy, count, random);
     } else {
-      const pool = buildPool(strategy);
+      const pool = buildPool(strategy, random);
       if (count > pool.length) {
         return {
           ok: false,

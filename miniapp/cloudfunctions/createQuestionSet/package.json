@@ -1,0 +1,7 @@
+{
+  "name": "createQuestionSet",
+  "version": "1.1.0",
+  "description": "整数加减法出题与判分云函数（P3）",
+  "main": "index.js",
+  "dependencies": {}
+}
