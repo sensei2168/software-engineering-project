@@ -5,6 +5,7 @@ const { GRADES, getRule, getRulesForGrade, getGradeLabel } = require('../../util
 const { DURATIONS } = require('../../utils/practice-config');
 const { envId } = require('../../config/cloud');
 const LAST_ROOM = 'room-p2.last-room.' + envId;
+const SAVED_ROOM = 'room-p2.saved-room.' + envId;
 const INITIAL_CONFIG = roomConfig().value;
 const ACTIVE = ['waiting', 'countdown', 'playing'];
 const POLL_MS = 1000;
@@ -18,7 +19,7 @@ Page({
     inputError: '', config: INITIAL_CONFIG, configSummary: configSummary(INITIAL_CONFIG),
     editConfig: false, countText: '30', configError: '', grades: GRADES, durations: DURATIONS,
     ruleChoices: getRulesForGrade(1), ruleIndex: 0, countdown: 3, waitingSeconds: 600,
-    phaseSeconds: 0, entry: 'create'
+    phaseSeconds: 0, entry: 'create', savedRoomId: ''
   },
   onLoad(options = {}) {
     this._alive = true; this._visible = false; this._epoch = 0; this._clock = null; this._offset = 0;
@@ -57,6 +58,7 @@ Page({
       const client = this.getClient();
       this.updatePending();
       this._roomId = source === 'demo' ? client.lastRoomId() || '' : wx.getStorageSync(LAST_ROOM) || '';
+      this.setData({ savedRoomId: source === 'live' ? wx.getStorageSync(SAVED_ROOM) || '' : '' });
       if (this.data.pendingAction) this.setData({ notice: '上次操作尚未确认，请先重试原操作，避免重复创建。' });
       else if (this._roomId) this.setData({ notice: '已找到上次房间，正在恢复当前状态。' });
     } catch (error) { this.applyError(error); }
@@ -177,18 +179,41 @@ Page({
   },
   openJoin() { this.showEntry('join'); },
   openCreate() { this.showEntry('create'); },
+  backToMatchSettings() {
+    if (this._busy || this._confirming || this.data.pendingAction || this.data.source !== 'live' || this.data.stage !== 'awaiting_result') return;
+    const room = this.data.room;
+    try { wx.setStorageSync(SAVED_ROOM, room.roomId); }
+    catch (_) { this.applyError({ code: 'LOCAL_STORAGE_FAILED' }); return; }
+    if (!this.showEntry('create')) return;
+    const config = roomConfig(room.config).value, ruleChoices = getRulesForGrade(config.grade);
+    this.setData({ savedRoomId: room.roomId, config, ruleChoices,
+      ruleIndex: ruleChoices.findIndex(rule => rule.id === config.ruleId), countText: String(config.count),
+      configSummary: configSummary(config), editConfig: true,
+      notice: '已返回比赛设置。上一场仍在等待结算，可通过下方入口重新查看。' });
+  },
+  resumeSavedRoom() {
+    if (this._busy || this._confirming || this.data.pendingAction || this.hasActiveRoom() || this.data.source !== 'live' || !this.data.savedRoomId) return;
+    const roomId = this.data.savedRoomId;
+    return this.perform(async client => {
+      const response = await client.call('get', { roomId });
+      try { wx.setStorageSync(LAST_ROOM, roomId); }
+      catch (_) { const error = new Error('无法保存恢复入口，请检查本机存储'); error.code = 'LOCAL_STORAGE_FAILED'; throw error; }
+      return response;
+    }, '已读取上一场比赛的当前状态。');
+  },
   showEntry(stage) {
     if (this._busy || this._confirming) return;
     if (this.data.pendingAction || this.hasActiveRoom()) {
       this.setData({ notice: '请先重试未确认操作，或恢复连接后退出原房间。' }); return;
     }
-    this._roomId = ''; this.stopClock();
     if (this.data.source === 'live') {
       try { wx.removeStorageSync(LAST_ROOM); } catch (error) { this.applyError({ code: 'LOCAL_STORAGE_FAILED' }); return; }
     }
+    this._roomId = ''; this.stopClock(); this._readEpoch++;
     this._lastServerNow = 0;
     this.setData({ stage, entry: stage, room: null, slots: [], summary: '', error: '', notice: '', inputError: '' });
     this.scrollToTop();
+    return true;
   },
   inputRoomCode(event) { this.setData({ inputCode: String(event.detail.value), inputError: '' }); },
   joinRoom() {

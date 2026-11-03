@@ -10,6 +10,10 @@
   </view>
   <view class="room-error" wx:if="{{error}}">{{error}}</view>
   <view class="room-notice" wx:if="{{notice}}">{{notice}}</view>
+  <view class="room-banner" wx:if="{{source === 'live' && savedRoomId && (stage === 'create' || stage === 'join')}}">
+    <view>已保留上一场比赛的查看入口。</view>
+    <button class="room-button secondary" bindtap="resumeSavedRoom" disabled="{{busy || !!pendingAction}}">查看上一场比赛</button>
+  </view>
   <view class="room-banner" wx:if="{{stage === 'countdown' || stage === 'playing'}}">断线或切到后台，时间仍会继续，请保持连接。</view>
 
   <block wx:if="{{stage === 'create'}}">
@@ -108,7 +112,8 @@
     <button class="room-button secondary" bindtap="refreshRoom" disabled="{{busy}}">刷新当前状态</button>
     <button wx:if="{{source === 'demo'}}" class="room-button secondary" bindtap="endDemo" disabled="{{busy || !!pendingAction}}">结束本次模拟演示</button>
     <button wx:if="{{stage === 'finished'}}" class="room-button secondary" bindtap="openCreate" disabled="{{busy || !!pendingAction}}">返回房间入口</button>
-    <view class="room-hint" wx:if="{{stage === 'awaiting_result'}}">离开本页面不会清除云端房间。重新打开可恢复当前状态。</view>
+    <button wx:if="{{source === 'live' && stage === 'awaiting_result'}}" class="room-button primary" bindtap="backToMatchSettings" disabled="{{busy || !!pendingAction}}">返回比赛设置</button>
+    <view class="room-hint" wx:if="{{stage === 'awaiting_result'}}">返回设置不会取消这场比赛，也不会生成成绩。设置页可重新查看上一场比赛。</view>
   </block>
 
   <block wx:else>

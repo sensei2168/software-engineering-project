@@ -85,6 +85,8 @@ async function fixtures() {
   cases.push(['live-playing', JSON.parse(JSON.stringify(p.data))]);
   await live.advance(120000);
   cases.push(['live-awaiting-result', JSON.parse(JSON.stringify(p.data))]);
+  p.backToMatchSettings();
+  cases.push(['live-returned-settings', JSON.parse(JSON.stringify(p.data))]);
   p.onUnload();
   return cases;
 }

@@ -138,3 +138,32 @@ test('automatic-query response after unload cannot update the former room', asyn
   p.onUnload();const snapshot=JSON.stringify(p.data);held.release();await s.settle();
   assert.equal(JSON.stringify(p.data),snapshot);assert.equal(s.timers(),0);
 });
+
+test('waiting result can return to editable settings and restore the saved match after reopening', async () => {
+  const {s,p}=await pair();await ready(s,p);await p.startMatch();await s.advance(123000);
+  const room=structuredClone(p.data.room), before=s.requests.length;
+  p.backToMatchSettings();assert.equal(p.data.stage,'create');assert.equal(p.data.editConfig,true);
+  assert.equal(p.data.config.ruleId,room.config.ruleId);assert.equal(p.data.countText,String(room.config.count));
+  assert.equal(p.data.config.durationSeconds,room.config.durationSeconds);
+  assert.equal(s.requests.length,before);assert.equal(s.timers(),0);
+  assert.equal(s.values.has('room-p2.last-room.'+envId),false);
+  assert.equal(s.values.get('room-p2.saved-room.'+envId),room.roomId);
+  p.onUnload();const next=s.load();await s.show(next);assert.equal(next.data.stage,'create');assert.equal(next.data.savedRoomId,room.roomId);
+  await next.resumeSavedRoom();assert.equal(next.data.stage,'awaiting_result');assert.equal(next.data.room.roomId,room.roomId);
+  assert.equal(s.requests.at(-1).action,'get');next.onUnload();
+});
+
+test('returning to settings invalidates an in-flight poll and permits a new room without closing the previous match', async () => {
+  const {s,p}=await pair();await ready(s,p);await p.startMatch();await s.advance(123000);
+  const old=p.data.room.roomId, held=holdOneResponse(s);await s.advance(3000);await held.arrived;
+  p.backToMatchSettings();held.release();await s.settle();assert.equal(p.data.stage,'create');assert.equal(p.data.room,null);
+  await p.createRoom();assert.notEqual(p.data.room.roomId,old);assert.equal(p.data.stage,'waiting');
+  const before=s.requests.length;await p.resumeSavedRoom();assert.equal(s.requests.length,before);
+  assert.equal((await s.backend.call('a','get',{roomId:old})).data.room.status,'awaiting_result');p.onUnload();
+});
+
+test('failure saving the previous match keeps the waiting-result view and existing recovery entry', async () => {
+  const {s,p}=await pair();await ready(s,p);await p.startMatch();await s.advance(123000);const id=p.data.room.roomId;
+  s.state.storageFailure=true;p.backToMatchSettings();assert.equal(p.data.stage,'awaiting_result');
+  assert.equal(s.values.get('room-p2.last-room.'+envId),id);assert.ok(p.data.error);p.onUnload();
+});
