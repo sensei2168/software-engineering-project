@@ -6,6 +6,7 @@
     "pages/result/result",
     "pages/room/room",
     "pages/history/history",
+    "pages/correction/correction",
     "pages/backend-check/backend-check"
   ],
   "window": {

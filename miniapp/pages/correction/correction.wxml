@@ -1,0 +1,15 @@
+<view class="page">
+  <view class="status">原题订正 · 不限时</view><view class="title">再试一次</view>
+  <view class="note">只订正原记录中的错题与未答题。提交后保存为新记录，原成绩保持不变。分数可输入2/4；空答案记为未答。</view>
+  <view class="error" wx:if="{{error}}">{{error}}</view>
+  <view class="card correction-row" wx:for="{{rows}}" wx:key="index">
+    <view class="card-title">{{item.index + 1}}. {{item.expression}}</view>
+    <input class="number-input" type="text" maxlength="24" value="{{item.answer}}" data-index="{{item.index}}" bindinput="inputAnswer" disabled="{{submitted}}" placeholder="填写答案" />
+    <view class="note" wx:if="{{submitted}}">{{item.statusText}} · 正确答案：{{item.correctAnswer}}</view>
+  </view>
+  <button class="primary" wx:if="{{!submitted && rows.length}}" bindtap="submit">提交本次订正</button>
+  <view class="card-title" wx:if="{{submitted}}">{{summary}}</view>
+  <button class="secondary" wx:if="{{submitted && !saved}}" bindtap="save">重试保存</button>
+  <button class="primary" wx:if="{{saved}}" bindtap="showResult">查看订正结果</button>
+  <button class="secondary" bindtap="goHome">返回首页</button>
+</view>

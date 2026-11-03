@@ -9,7 +9,7 @@ async function settle() { for (let n = 0; n < 8; n++) await new Promise(resolve 
 
 function roomPageFixture({ envVersion = 'develop', values = new Map(), backend = fixture(), actor = 'a' } = {}) {
   let clock = backend.time(), sequence = 0, definition, modal, clipboard = '';
-  const callbacks = new Map(), requests = [], scrolls = [], state = { loseResponse: false, rejectCloud: false, gate: null, response: null, storageFailure: false };
+  const callbacks = new Map(), requests = [], scrolls = [], routes = [], state = { loseResponse: false, rejectCloud: false, gate: null, response: null, storageFailure: false };
   class MockDate extends Date { constructor(...args) { super(...(args.length ? args : [clock])); } static now() { return clock; } }
   const wxApi = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion } }),
@@ -17,6 +17,9 @@ function roomPageFixture({ envVersion = 'develop', values = new Map(), backend =
     setStorageSync(key, value) { if (state.storageFailure) throw new Error('full'); values.set(key, structuredClone(value)); },
     removeStorageSync(key) { if (state.storageFailure) throw new Error('full'); values.delete(key); },
     showModal(options) { modal = options; },
+    navigateTo(options) { routes.push(options.url); },
+    redirectTo(options) { routes.push(options.url); },
+    reLaunch(options) { routes.push(options.url); },
     pageScrollTo(options) { scrolls.push(options.scrollTop); },
     setClipboardData(options) { clipboard = options.data; options.success(); },
     cloud: { init() {}, async callFunction({ data }) {
@@ -40,7 +43,7 @@ function roomPageFixture({ envVersion = 'develop', values = new Map(), backend =
     } };
     page.onLoad(options); return page;
   }
-  return { backend, values, state, requests, scrolls, load, wxApi, event, settle,
+  return { backend, values, state, requests, scrolls, routes, load, wxApi, event, settle,
     timers: () => callbacks.size, clipboard: () => clipboard, modal: () => modal,
     async show(page) { await page.onShow(); await settle(); },
     async advance(ms) { clock += ms; backend.advance(ms); for (const [id, run] of [...callbacks]) if (callbacks.has(id)) run(); await settle(); },

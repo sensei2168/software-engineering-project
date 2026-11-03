@@ -43,7 +43,7 @@ Page({
     configText: '',
     savedState: '',     // saving | saved | deduped | failed
     savedText: '',
-    error: ''
+    error: '', kind: 'practice', match: null, canCorrect: false, outcomeText: ''
   },
 
   onLoad(options) {
@@ -108,6 +108,9 @@ Page({
       isDev: input.isDevData === true,
       summary: summary,
       rows: rows,
+      kind: input.kind || 'practice', match: input.match || null,
+      outcomeText: input.match ? ({ win: '本场获胜', lose: '伙伴领先', draw: '本场平局' })[input.match.outcome] : '',
+      canCorrect: input.isDevData !== true && input.items.some(item => item.status !== 'correct'),
       metaText: mode === 'detail' ? (input.createdAtText || '') : '刚刚完成',
       configText: configText,
       error: '',
@@ -181,6 +184,13 @@ Page({
     }
     // 测试数据没有配置，回到设置页重新选择
     openPage('/pages/settings/settings');
+  },
+  onCorrect() {
+    if (!this.current || !this.data.canCorrect) return;
+    if (this.data.mode === 'preview') this.saveNow(true);
+    if (this.data.savedState === 'failed') return;
+    const id = this.current.id || this.current.practiceId;
+    openPage('/pages/correction/correction?id=' + encodeURIComponent(id));
   },
 
   onHistory() {

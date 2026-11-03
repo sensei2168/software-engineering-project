@@ -53,18 +53,18 @@ test('cancel arriving at start boundary refreshes playing instead of keeping an 
   p.onUnload();
 });
 
-test('same-version time transitions expose actual questions and awaiting_result without fake scores', async () => {
+test('same-version time transitions expose actual questions and final authoritative result', async () => {
   const {s,p}=await pair(); await ready(s,p); await p.startMatch(); const version=p.data.room.version;
   const old=structuredClone(p.data.room), oldTime=s.backend.time();
   await s.advance(3000);assert.equal(p.data.stage,'playing');assert.equal(p.data.room.version,version);
   assert.equal(p.data.room.questions.length,30);
   assert.ok(p.data.room.questions.every(x=>!Object.hasOwn(x,'answer')));
-  await s.advance(120000); assert.equal(p.data.stage,'awaiting_result');assert.equal(p.data.error,'');
-  p.setRoom(old,oldTime);assert.equal(p.data.stage,'awaiting_result');
+  await s.advance(120000); assert.equal(p.data.stage,'finished');assert.equal(p.data.error,'');
+  p.setRoom(old,oldTime);assert.equal(p.data.stage,'finished');
   const before=s.requests.length;await s.advance(1000);assert.equal(s.requests.length,before);
-  await s.advance(2000);assert.equal(s.requests.length,before+1);assert.equal(p.data.stage,'awaiting_result');
+  await s.advance(2000);assert.equal(s.requests.length,before);assert.equal(p.data.stage,'finished');
   assert.equal(Object.hasOwn(p.data,'score'),false);
-  p.onUnload();const reopened=s.load();await s.show(reopened);assert.equal(reopened.data.stage,'awaiting_result');reopened.onUnload();
+  p.onUnload();const reopened=s.load();await s.show(reopened);assert.equal(reopened.data.stage,'finished');reopened.onUnload();
 });
 
 test('foreground polling discovers join and readiness, uses one timer, and does not poll in background', async () => {
@@ -149,21 +149,21 @@ test('waiting result can return to editable settings and restore the saved match
   assert.equal(s.values.has('room-p2.last-room.'+envId),false);
   assert.equal(s.values.get('room-p2.saved-room.'+envId),room.roomId);
   p.onUnload();const next=s.load();await s.show(next);assert.equal(next.data.stage,'create');assert.equal(next.data.savedRoomId,room.roomId);
-  await next.resumeSavedRoom();assert.equal(next.data.stage,'awaiting_result');assert.equal(next.data.room.roomId,room.roomId);
+  await next.resumeSavedRoom();assert.equal(next.data.stage,'finished');assert.equal(next.data.room.roomId,room.roomId);
   assert.equal(s.requests.at(-1).action,'get');next.onUnload();
 });
 
 test('returning to settings invalidates an in-flight poll and permits a new room without closing the previous match', async () => {
   const {s,p}=await pair();await ready(s,p);await p.startMatch();await s.advance(123000);
-  const old=p.data.room.roomId, held=holdOneResponse(s);await s.advance(3000);await held.arrived;
-  p.backToMatchSettings();held.release();await s.settle();assert.equal(p.data.stage,'create');assert.equal(p.data.room,null);
+  const old=p.data.room.roomId, held=holdOneResponse(s);const pending=p.pollRoom();await held.arrived;
+  p.backToMatchSettings();held.release();await pending;await s.settle();assert.equal(p.data.stage,'create');assert.equal(p.data.room,null);
   await p.createRoom();assert.notEqual(p.data.room.roomId,old);assert.equal(p.data.stage,'waiting');
   const before=s.requests.length;await p.resumeSavedRoom();assert.equal(s.requests.length,before);
-  assert.equal((await s.backend.call('a','get',{roomId:old})).data.room.status,'awaiting_result');p.onUnload();
+  assert.equal((await s.backend.call('a','get',{roomId:old})).data.room.status,'finished');p.onUnload();
 });
 
 test('failure saving the previous match keeps the waiting-result view and existing recovery entry', async () => {
   const {s,p}=await pair();await ready(s,p);await p.startMatch();await s.advance(123000);const id=p.data.room.roomId;
-  s.state.storageFailure=true;p.backToMatchSettings();assert.equal(p.data.stage,'awaiting_result');
+  s.state.storageFailure=true;p.backToMatchSettings();assert.equal(p.data.stage,'finished');
   assert.equal(s.values.get('room-p2.last-room.'+envId),id);assert.ok(p.data.error);p.onUnload();
 });

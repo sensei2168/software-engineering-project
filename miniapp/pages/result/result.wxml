@@ -2,7 +2,7 @@
 
   <!-- 没有可显示的结果 -->
   <block wx:if="{{mode === 'empty'}}">
-    <view class="status">尚未接入真实练习结果</view>
+    <view class="status">还没有练习结果</view>
     <view class="title">练习结果</view>
 
     <view class="card" wx:if="{{error}}">
@@ -12,7 +12,7 @@
 
     <view class="card">
       <view class="card-title">还没有可显示的结果</view>
-      <view class="note">完成一次练习并提交后，这里会显示总题数、正确、错误、未答和正确率，以及每道题的作答情况。目前答题与批改功能尚未接入。</view>
+      <view class="note">完成练习或比赛后，这里会显示正确、错误、未答、正确率与逐题结果。</view>
       <button wx:if="{{devAllowed}}" class="secondary" bindtap="onUseDevData">用开发测试数据查看页面效果</button>
       <view wx:if="{{devAllowed}}" class="dev-hint">开发测试数据只用于验证页面，不代表真实练习结果。</view>
     </view>
@@ -22,7 +22,8 @@
 
   <block wx:else>
     <view wx:if="{{isDev}}" class="status">开发测试数据 · 未接入批改</view>
-    <view wx:else class="status">练习结果</view>
+    <view wx:else class="status">{{kind === 'match' ? '比赛结果' : kind === 'correction' ? '订正结果' : '练习结果'}}</view>
+    <view class="card" wx:if="{{match}}"><view class="card-title">{{outcomeText}}</view><view class="note" wx:for="{{match.scores}}" wx:key="role">{{item.role === match.selfRole ? '我' : '伙伴'}}：{{item.score}} 分 · {{item.accuracyText}}</view></view>
 
     <view class="title">{{summary.accuracyText}}</view>
     <view class="subtitle">正确率</view>
@@ -80,7 +81,8 @@
       <view wx:elif="{{mode === 'preview' && (savedState === 'saved' || savedState === 'deduped')}}" class="save-action" bindtap="onSaveTap">再次保存</view>
     </view>
 
-    <button class="primary" bindtap="onAgain">再次练习</button>
+    <button wx:if="{{canCorrect}}" class="primary" bindtap="onCorrect">订正错题与未答题</button>
+    <button class="secondary" bindtap="onAgain">重新练习该题型</button>
     <button class="secondary" bindtap="onHistory">查看练习记录</button>
     <navigator class="link" url="/pages/home/home" open-type="reLaunch">返回首页</navigator>
   </block>
