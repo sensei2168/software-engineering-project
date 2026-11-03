@@ -169,7 +169,7 @@ test('database failure is sanitized, rolls back, and permits safe retry with the
 
 test('unimplemented match operations and unknown actions fail explicitly', async () => {
   const f = fixture();
-  for (const action of ['start', 'cancelStart', 'submitAnswer', 'finish']) error(await f.call('a', action), 'FEATURE_NOT_READY');
+  for (const action of ['submitAnswer', 'finish']) error(await f.call('a', action), 'FEATURE_NOT_READY');
   error(await f.service({ action: 'invented' }, f.context('a')), 'UNKNOWN_ACTION');
 });
 
