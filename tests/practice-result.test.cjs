@@ -91,13 +91,16 @@ test('答题 → 查看结果 → 保存记录 → 历史列表走通，重复�
   practice.onSubmitTap();
   await wait(400);
   assert.equal(practice.data.summary.correct, 10);
+  // 交卷后立即保存，不依赖用户点「查看结果」
+  assert.equal(storage[STORAGE_KEY].length, 1);
 
   practice.openResultPage();
-  assert.ok(calls.navigate.indexOf('/pages/result/result') !== -1);
+  const resultUrl = calls.navigate[calls.navigate.length - 1];
+  assert.ok(resultUrl.indexOf('/pages/result/result?id=') === 0, resultUrl);
 
   const result = loadPage(RESULT);
-  result.onLoad({});
-  assert.equal(result.data.mode, 'preview');
+  result.onLoad({ id: decodeURIComponent(resultUrl.split('?id=')[1]) });
+  assert.equal(result.data.mode, 'detail');
   assert.equal(result.data.summary.total, 10);
   assert.equal(result.data.summary.correct, 10);
   assert.equal(result.data.savedState, 'saved');
@@ -110,17 +113,19 @@ test('答题 → 查看结果 → 保存记录 → 历史列表走通，重复�
   assert.equal(record.id, practice.data.quizId);
   assert.equal(record.ruleId, 'g1_add_20');
   assert.equal(record.ruleVersion, RULE_VERSION);
+  assert.ok(record.configText.indexOf('一年级') !== -1, record.configText);
   assert.equal(record.items.length, 10);
   assert.equal(record.items[0].status, 'correct');
   assert.ok(record.items[0].question, '记录应保存结构化原题快照');
   assert.equal(record.items[0].question.kind, 'integer');
   assert.equal(record.items[0].userAnswer, String(questions[0].answer));
 
-  // 再打开一次：pending 重新设置，但 practiceId 相同，记录数仍为 1
+  // 再打开一次：仍按同一条记录查看，不重复保存
   practice.openResultPage();
+  const resultUrl2 = calls.navigate[calls.navigate.length - 1];
   const again = loadPage(RESULT);
-  again.onLoad({});
-  assert.equal(again.data.savedState, 'deduped');
+  again.onLoad({ id: decodeURIComponent(resultUrl2.split('?id=')[1]) });
+  assert.equal(again.data.mode, 'detail');
   assert.equal(storage[STORAGE_KEY].length, 1);
 
   // 记录页能看到这一条
@@ -147,7 +152,7 @@ test('小数、分数、混合结果保留原输入与结构化原题快照', as
   ];
 
   for (const sample of cases) {
-    const { storage, loadPage } = createHarness();
+    const { storage, calls, loadPage } = createHarness();
     session.clearPendingResult();
 
     const practice = loadPage(PRACTICE);
@@ -162,10 +167,13 @@ test('小数、分数、混合结果保留原输入与结构化原题快照', as
     practice.answers = questions.map((question) => sample.input(question));
     practice.onSubmitTap();
     await wait(400);
+    assert.equal(storage[STORAGE_KEY].length, 1, sample.ruleId + ' 交卷后应立即保存');
 
     practice.openResultPage();
+    const resultUrl = calls.navigate[calls.navigate.length - 1];
     const result = loadPage(RESULT);
-    result.onLoad({});
+    result.onLoad({ id: decodeURIComponent(resultUrl.split('?id=')[1]) });
+    assert.equal(result.data.mode, 'detail', sample.ruleId);
     assert.equal(result.data.savedState, 'saved', sample.ruleId);
 
     const record = storage[STORAGE_KEY][0];

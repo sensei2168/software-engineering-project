@@ -19,6 +19,7 @@
  */
 const { fromQuery, toQuery, getConfigDisplay } = require('../../utils/practice-config');
 const { setPendingResult } = require('../../utils/practice-session');
+const { saveRecord } = require('../../utils/record-store');
 const questionService = require('../../services/question-service');
 
 const TIMER_INTERVAL_MS = 250;
@@ -28,6 +29,24 @@ function formatClock(seconds) {
   const m = Math.floor(safe / 60);
   const s = safe % 60;
   return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+/** 结果页 / 记录页的配置摘要快照，保存后详情页直接显示这段文字。 */
+function configTextOf(config) {
+  if (!config || !config.ruleId) return '';
+  try {
+    const display = getConfigDisplay(config);
+    const parts = [display.gradeLabel, display.ruleLabel, display.rangeLabel];
+    if (config.count) parts.push(config.count + ' 题');
+    if (config.mode === 'timed') {
+      parts.push('限时练习' + (config.durationSeconds ? ' ' + config.durationSeconds + ' 秒' : ''));
+    } else {
+      parts.push('普通练习');
+    }
+    return parts.filter(Boolean).join(' · ');
+  } catch (error) {
+    return '';
+  }
 }
 
 function buildAnswersView(answers) {
@@ -113,6 +132,7 @@ Page({
     this.pageActive = true;
     this.result = null;
     this.ruleVersion = '';
+    this.savedRecordId = '';
 
     const parsed = fromQuery(options);
     if (!parsed.ok) {
@@ -174,6 +194,7 @@ Page({
       this.questions = data.questions;
       this.answers = answers;
       this.ruleVersion = data.ruleVersion || '';
+      this.savedRecordId = '';
       this.setData({
         loading: false,
         loadError: '',
@@ -410,6 +431,26 @@ Page({
       const result = response.data.result;
       console.log('[practice] 批改结果（' + response.source + '）', result);
       this.result = result;
+
+      // 批改成功立即保存，不依赖用户是否点「查看结果」：
+      // 交卷后直接返回也不会丢记录；结果页随后按 id 查看已保存的详情。
+      const pending = this.buildPendingResult(result);
+      let saved = null;
+      try {
+        saved = saveRecord(pending);
+      } catch (error) {
+        saved = { ok: false, error: (error && error.message) || '保存失败' };
+      }
+      this.savedRecordId = saved && saved.ok && saved.record ? saved.record.id : '';
+      if (saved && !saved.ok && this.pageActive) {
+        wx.showModal({
+          title: '结果保存失败',
+          content: (saved.error || '未知错误') + '\n\n本次结果仍可查看，但关闭小程序后可能丢失。',
+          showCancel: false,
+          confirmText: '知道了'
+        });
+      }
+
       this.setData({
         submitting: false,
         finished: true,
@@ -447,15 +488,29 @@ Page({
       // 生成时固定的版本；旧结果没有该字段时退回出题时的版本
       ruleVersion: result.ruleVersion || this.ruleVersion || '',
       config: this.config,
+      // 保存时的摘要快照，结果页详情不再用当前规则表重算
+      configText: configTextOf(this.config),
       createdAt: Date.now(),
       items: (result.questions || []).map(toPendingItem)
     };
   },
 
-  /** 回顾状态：点「查看结果」时按 practice-session 协议交给结果页；保存与去重由结果页负责。 */
+  /**
+   * 回顾状态：已经保存成功时按 id 打开记录详情，避免重复保存；
+   * 保存失败时把 pending 交给结果页，由结果页重试保存。
+   */
   openResultPage() {
     const result = this.result;
     if (!result) return;
+    if (this.savedRecordId) {
+      wx.navigateTo({
+        url: '/pages/result/result?id=' + encodeURIComponent(this.savedRecordId),
+        fail: () => {
+          wx.showToast({ title: '结果页打开失败，可稍后在记录里查看', icon: 'none' });
+        }
+      });
+      return;
+    }
     setPendingResult(this.buildPendingResult(result));
     wx.navigateTo({
       url: '/pages/result/result',

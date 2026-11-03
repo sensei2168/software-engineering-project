@@ -15,6 +15,7 @@ const PAGE = path.join(MINIAPP, 'pages/practice/practice.js');
 const generator = require(path.join(MINIAPP, 'utils', 'question', 'generator.js'));
 const session = require(path.join(MINIAPP, 'utils', 'practice-session.js'));
 const { RULE_VERSION } = require(path.join(MINIAPP, 'utils', 'practice-rules.js'));
+const STORAGE_KEY = 'kousuan_practice_records_v1';
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -95,7 +96,7 @@ test('作答阶段：未答灰色、已答标记，点题号可跳到最后一�
 });
 
 test('交卷后：正确绿 / 错误红 / 未答橙，点题号回看答案，查看结果按 practice-session 交接', async function () {
-  const { page, calls } = createHarness();
+  const { page, storage, calls } = createHarness();
   session.clearPendingResult();
   page.onLoad(configFor('g1_add_20', 1, 'add', 20, 10));
   await wait(150);
@@ -132,23 +133,27 @@ test('交卷后：正确绿 / 错误红 / 未答橙，点题号回看答案，�
   assert.equal(page.data.reviewVerdict, 'blank');
   assert.equal(page.data.reviewUserText, '未答');
 
-  page.openResultPage();
-  assert.ok(calls.navigate.indexOf('/pages/result/result') !== -1);
+  const records = storage[STORAGE_KEY];
+  assert.equal(records.length, 1, '交卷后应立即保存记录');
 
-  const pending = session.peekPendingResult();
-  assert.ok(pending, '应通过 practice-session 交接结果');
-  assert.equal(pending.practiceId, page.data.quizId);
-  assert.equal(pending.ruleId, 'g1_add_20');
-  assert.equal(pending.ruleVersion, RULE_VERSION);
-  assert.equal(pending.items.length, 10);
-  assert.equal(pending.items[0].status, 'correct');
-  assert.equal(pending.items[1].status, 'wrong');
-  assert.equal(pending.items[2].status, 'unanswered');
-  assert.equal(typeof pending.items[1].userAnswer, 'string');
-  assert.equal(pending.items[2].userAnswer, '');
-  assert.ok(pending.items[0].expression.indexOf('= ?') === -1, 'expression 不应带 = ?');
-  assert.ok(pending.items[0].question, '应带结构化原题快照');
-  assert.equal(pending.items[0].question.kind, 'integer');
+  page.openResultPage();
+  const resultUrl = calls.navigate[calls.navigate.length - 1];
+  assert.ok(resultUrl.indexOf('/pages/result/result?id=') === 0, resultUrl);
+  assert.equal(session.peekPendingResult(), null, '已保存时直接按 id 查看详情');
+
+  const record = records[0];
+  assert.equal(record.id, page.data.quizId);
+  assert.equal(record.ruleId, 'g1_add_20');
+  assert.equal(record.ruleVersion, RULE_VERSION);
+  assert.equal(record.items.length, 10);
+  assert.equal(record.items[0].status, 'correct');
+  assert.equal(record.items[1].status, 'wrong');
+  assert.equal(record.items[2].status, 'unanswered');
+  assert.equal(typeof record.items[1].userAnswer, 'string');
+  assert.equal(record.items[2].userAnswer, '');
+  assert.ok(record.items[0].expression.indexOf('= ?') === -1, 'expression 不应带 = ?');
+  assert.ok(record.items[0].question, '应带结构化原题快照');
+  assert.equal(record.items[0].question.kind, 'integer');
 });
 
 test('50 题：题号方块全部展开，可跳到最后一题', async function () {
