@@ -135,7 +135,7 @@ npm test                                    # 全部 CJS 测试
 node scripts/sync-room-contract.cjs --check # 核对前后端题型配置
 ```
 
-当前包含：结果与记录 40 项、房间与联调页、设置 39 项、出题判分 61 项、答题页导航 3 项。
+当前包含：结果与记录 40 项、房间与联调页、设置 39 项、出题判分 62 项、答题页导航 3 项。
 测试没有连接真实云环境，不替代微信开发者工具和真机验证。
 
 布局回归可运行 `node tests/settings-layout.browser.cjs` 和 `node tests/room-layout.browser.cjs`，

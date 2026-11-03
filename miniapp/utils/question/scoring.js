@@ -4,7 +4,8 @@
  * 判分规则：
  * 1. 未填写（空白）记为「未答」，不算答错；
  * 2. 数字 0 是有效答案；
- * 3. 整数题按整数比较；一位小数题按「十分之一整数」比较，1 与 1.0 等值；
+ * 3. 整数题按整数比较；一位小数题按精确值比较，1 与 1.0、1.7 与 1.70 等值；
+ *    不允许先四舍五入，1.74 不能判成 1.7；
  * 4. 分数题接受等值分数与 0／1，例如 2/4 与 1/2 都算对；
  * 5. 格式不合法（小数点不完整、分母为 0 等）记为答错，reason 为 invalidFormat；
  * 6. 每题结果只有 correct / wrong / blank 三种，数量之和必须等于总题数。
@@ -29,8 +30,36 @@ function normalizeAnswer(value) {
 }
 
 /**
+ * 把 "1.70" 解析成精确的整数与小数部分，全程不经过浮点四舍五入。
+ * 例：'1.7' -> { integer: 1, fractionValue: 7, scale: 10 }
+ *     '1.70' -> { integer: 1, fractionValue: 70, scale: 100 }
+ *     '10'   -> { integer: 10, fractionValue: 0, scale: 1 }
+ * 格式不合法返回 null（如 '1.'、'.5'、'1.234'）。
+ */
+function parseDecimalExact(text) {
+  const match = /^(\d{1,2})(?:\.(\d{1,2}))?$/.exec(text);
+  if (!match) return null;
+  const fraction = match[2] || '';
+  return {
+    integer: Number(match[1]),
+    fractionValue: fraction === '' ? 0 : Number(fraction),
+    scale: fraction.length === 0 ? 1 : (fraction.length === 1 ? 10 : 100)
+  };
+}
+
+/**
+ * 精确比较：integer + fractionValue / scale 是否等于 tenths / 10。
+ * 用交叉相乘避免浮点误差，也不把用户答案四舍五入。
+ */
+function decimalEqualsTenths(decimal, tenths) {
+  if (!decimal || !Number.isInteger(tenths)) return false;
+  return (decimal.integer * decimal.scale + decimal.fractionValue) * 10 === tenths * decimal.scale;
+}
+
+/**
  * 按题型解析用户输入。
- * @returns {{blank?: true, invalid?: boolean, text?: string, value?: number, tenths?: number, numerator?: number, denominator?: number}}
+ * @returns {{blank?: true, invalid?: boolean, text?: string, value?: number, decimal?: object,
+ *   numerator?: number, denominator?: number}}
  */
 function parseAnswer(question, raw) {
   if (isBlankAnswer(raw)) return { blank: true };
@@ -38,9 +67,14 @@ function parseAnswer(question, raw) {
   const kind = (question && question.answerKind) || 'integer';
 
   if (kind === 'decimal') {
-    if (!/^\d{1,2}(\.\d{1,2})?$/.test(text)) return { invalid: true, text: text };
-    const value = Number(text);
-    return { value: value, tenths: Math.round(value * 10), text: text };
+    const decimal = parseDecimalExact(text);
+    if (!decimal) return { invalid: true, text: text };
+    return {
+      // 仅用于展示；判分用精确的 integer/fractionValue/scale，不做四舍五入
+      value: decimal.integer + decimal.fractionValue / decimal.scale,
+      decimal: decimal,
+      text: text
+    };
   }
   if (kind === 'fraction') {
     const match = /^(\d{1,3})\s*\/\s*(\d{1,3})$/.exec(text);
@@ -63,7 +97,7 @@ function parseAnswer(question, raw) {
 function isAnswerCorrect(question, parsed) {
   const kind = (question && question.answerKind) || 'integer';
   if (kind === 'decimal') {
-    return parsed.tenths === Number(question.answerTenths);
+    return decimalEqualsTenths(parsed.decimal, Number(question.answerTenths));
   }
   if (kind === 'fraction') {
     const expectedNumerator = Number(question.answerNumerator);
@@ -224,6 +258,8 @@ module.exports = {
   MAX_ANSWER,
   isBlankAnswer,
   normalizeAnswer,
+  parseDecimalExact,
+  decimalEqualsTenths,
   parseAnswer,
   isAnswerCorrect,
   correctAnswerText,

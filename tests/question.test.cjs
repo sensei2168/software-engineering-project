@@ -365,6 +365,46 @@ test('小数答案等值：1 与 1.0、1.7 与 1.70 都算对；格式错误记 
   });
 });
 
+test('小数精确判题：1.74 与 1.66 不能四舍五入成 1.7', function () {
+  const question = {
+    id: 'd3', operation: 'decimal_add_sub', answerKind: 'decimal', op: 'add',
+    text: '1.2 + 0.5 = ?', leftTenths: 12, rightTenths: 5, answerTenths: 17, answer: 1.7
+  };
+  ['1.7', '1.70', ' 1.70 '].forEach(function (answer) {
+    assert.equal(scoring.gradeAnswers({ questions: [question], answers: [answer] }).result.questions[0].verdict, 'correct', answer);
+  });
+  ['1.74', '1.66', '1.71', '1.69'].forEach(function (answer) {
+    const graded = scoring.gradeAnswers({ questions: [question], answers: [answer] }).result.questions[0];
+    assert.equal(graded.verdict, 'wrong', answer);
+    assert.equal(graded.reason, 'incorrect', answer);
+  });
+  ['1.700', '1.2.3', '1.', '.5', 'abc'].forEach(function (answer) {
+    const graded = scoring.gradeAnswers({ questions: [question], answers: [answer] }).result.questions[0];
+    assert.equal(graded.verdict, 'wrong', answer);
+    assert.equal(graded.reason, 'invalidFormat', answer);
+  });
+  assert.equal(scoring.parseDecimalExact('1.74').fractionValue, 74);
+  assert.equal(scoring.parseDecimalExact('1.234'), null);
+
+  const zero = {
+    id: 'd4', operation: 'decimal_add_sub', answerKind: 'decimal', op: 'subtract',
+    text: '1.0 - 1.0 = ?', leftTenths: 10, rightTenths: 10, answerTenths: 0, answer: 0
+  };
+  ['0', '0.0', '0.00'].forEach(function (answer) {
+    assert.equal(scoring.gradeAnswers({ questions: [zero], answers: [answer] }).result.questions[0].verdict, 'correct', answer);
+  });
+  assert.equal(scoring.gradeAnswers({ questions: [zero], answers: ['0.1'] }).result.questions[0].verdict, 'wrong');
+
+  const ten = {
+    id: 'd5', operation: 'decimal_add_sub', answerKind: 'decimal', op: 'add',
+    text: '4.5 + 5.5 = ?', leftTenths: 45, rightTenths: 55, answerTenths: 100, answer: 10
+  };
+  ['10', '10.0', '10.00'].forEach(function (answer) {
+    assert.equal(scoring.gradeAnswers({ questions: [ten], answers: [answer] }).result.questions[0].verdict, 'correct', answer);
+  });
+  assert.equal(scoring.gradeAnswers({ questions: [ten], answers: ['9.9'] }).result.questions[0].verdict, 'wrong');
+});
+
 test('分数答案等值：2/4 与 1/2、0/1、1 都算对；分母为 0 非法', function () {
   const half = {
     id: 'f1', operation: 'fraction_add_sub', answerKind: 'fraction', op: 'add',
