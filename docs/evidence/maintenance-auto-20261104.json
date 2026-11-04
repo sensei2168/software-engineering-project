@@ -1,0 +1,11 @@
+{
+  "source": "User screenshots of function log and explicit confirmation that no manual test was run",
+  "logTime": "2026-11-04 22:30:04",
+  "trigger": "room-cleanup",
+  "schedule": "0 */5 * * * * *",
+  "statusCode": 200,
+  "platformDurationMs": 425,
+  "coldStartMs": 429,
+  "result": { "ok": true, "mode": "delete", "cutoff": 1793802604650, "targetCollection": "room_p2_rooms", "candidates": 1, "attempted": 1, "removed": { "room_p2_rooms": 1 }, "batchLimit": 1, "stoppedForBudget": false, "elapsedMs": 422, "mayHaveMore": true },
+  "scope": "One confirmed automatic room cleanup; not proof of all scheduled cycles or backlog clearance"
+}
