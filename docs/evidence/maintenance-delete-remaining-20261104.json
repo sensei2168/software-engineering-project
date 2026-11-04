@@ -1,0 +1,8 @@
+{
+  "source": "User-provided cloud console results, received 2026-11-04",
+  "platformDurationMs": null,
+  "results": [
+    {"ok":true,"mode":"delete","cutoff":1793801456841,"targetCollection":"room_p2_requests","candidates":1,"attempted":1,"removed":{"room_p2_requests":1},"batchLimit":1,"stoppedForBudget":false,"elapsedMs":323,"mayHaveMore":true},
+    {"ok":true,"mode":"delete","cutoff":1793801919782,"targetCollection":"room_p2_rooms","candidates":1,"attempted":1,"removed":{"room_p2_rooms":1},"batchLimit":1,"stoppedForBudget":false,"elapsedMs":253,"mayHaveMore":true}
+  ]
+}
