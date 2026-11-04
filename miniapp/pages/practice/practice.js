@@ -21,6 +21,7 @@ const { fromQuery, toQuery, getConfigDisplay } = require('../../utils/practice-c
 const { setPendingResult } = require('../../utils/practice-session');
 const { saveRecord } = require('../../utils/record-store');
 const questionService = require('../../services/question-service');
+const draftStore = require('../../utils/practice-draft');
 
 const TIMER_INTERVAL_MS = 250;
 
@@ -88,6 +89,7 @@ function toPendingItem(item) {
 Page({
   data: {
     loading: true,
+    draftWarning: '',
     config: null,
     display: null,
     error: '',
@@ -136,11 +138,22 @@ Page({
     this.ruleVersion = '';
     this.savedRecordId = '';
 
+    const stored = draftStore.read();
+    if (options && options.resume === '1') {
+      if (!stored.ok || !stored.draft) {
+        this.setData({ loading: false, error: stored.error || '没有可继续的练习，请返回首页。' }); return;
+      }
+      this.restoreDraft(stored.draft); return;
+    }
+
     const parsed = fromQuery(options);
     if (!parsed.ok) {
       // 验收 T30：非法链接只提示设置无效，不展示任何有效练习配置
       this.setData({ loading: false, error: '练习设置无效，请返回设置页面重新选择。' });
       return;
+    }
+    if (!stored.ok || stored.draft) {
+      this.setData({ loading: false, error: stored.error || '已有未完成的练习，请返回首页继续，或选择重新开始。' }); return;
     }
     this.config = parsed.value;
     this.setData({
@@ -163,15 +176,41 @@ Page({
   },
 
   onHide() {
+    this.saveDraft();
     // 页面不可见时停止刷新倒计时；计时以 Date.now() 为准，回来后按真实时间差继续
     this.pageActive = false;
     this.clearTimer();
   },
 
   onUnload() {
+    this.saveDraft();
     this.pageActive = false;
     this.pageUnloaded = true;
     this.clearTimer();
+  },
+
+  saveDraft(pending) {
+    if (this.data.finished || !this.startTime || !this.questions.length || !questionService.snapshot) return;
+    const questions = questionService.snapshot(this.data.quizId);
+    if (!questions) return;
+    if (pending !== undefined) this.pendingSubmit = pending;
+    const saved = draftStore.save({ version: 1, quizId: this.data.quizId, ruleVersion: this.ruleVersion,
+      config: this.config, questions, answers: this.answers.slice(), startTime: this.startTime,
+      index: this.data.currentIndex, pending: this.pendingSubmit || '' });
+    this.setData({ draftWarning: saved.ok ? '' : saved.error });
+  },
+
+  restoreDraft(d) {
+    this.config = d.config; this.startTime = d.startTime; this.ruleVersion = d.ruleVersion;
+    this.questions = questionService.restore(d); this.answers = d.answers.slice();
+    this.pendingSubmit = d.pending;
+    this.setData({ loading: false, config: d.config, display: getConfigDisplay(d.config),
+      timed: d.config.mode === 'timed', mode: d.config.mode, quizId: d.quizId,
+      questions: this.questions, answers: this.answers, total: this.questions.length,
+      answeredCount: this.countAnswered(), navCells: this.answers.map((a,i) => ({ no:i+1, state:a ? 'answered':'unanswered' })) });
+    this.applyQuestion(d.index);
+    if (d.pending) this.submit(d.pending);
+    else this.startTimerLoop();
   },
 
   /** 出题：云端优先，失败自动本地兜底（question-service 内部处理）。 */
@@ -260,6 +299,7 @@ Page({
   /** 正式开试：记录开始时间，限时模式启动定时器（只在题目加载完成后调用一次）。 */
   beginQuiz() {
     this.startTime = Date.now();
+    this.saveDraft('');
     this.startTimerLoop();
   },
 
@@ -316,6 +356,7 @@ Page({
     const patch = { currentValue: cleaned, answers: this.answers, answeredCount: this.countAnswered() };
     patch['navCells[' + index + '].state'] = cleaned === '' ? 'unanswered' : 'answered';
     this.setData(patch);
+    this.saveDraft();
   },
 
   /** 分数题：分子、分母两个输入框，拼成 "n/d" 存进 answers。 */
@@ -336,6 +377,7 @@ Page({
     if (part === 'numerator') patch.fractionNumerator = cleaned;
     else patch.fractionDenominator = cleaned;
     this.setData(patch);
+    this.saveDraft();
   },
 
   countAnswered() {
@@ -446,6 +488,7 @@ Page({
     this.setData({ submitting: true });
     this.clearTimer();
     this.submitted = true;
+    this.saveDraft(finishedBy === 'timeup' ? 'timeup' : 'manual');
 
     const durationSeconds = Math.max(0, Math.round((Date.now() - this.startTime) / 1000));
     const payload = {
@@ -479,6 +522,10 @@ Page({
         saved = { ok: false, error: (error && error.message) || '保存失败' };
       }
       this.savedRecordId = saved && saved.ok && saved.record ? saved.record.id : '';
+      if (this.savedRecordId) {
+        const cleared = draftStore.clear();
+        this.setData({ draftWarning: cleared.ok ? '' : cleared.error });
+      }
       if (saved && !saved.ok && this.pageActive) {
         wx.showModal({
           title: '结果保存失败',
@@ -521,11 +568,13 @@ Page({
   handleSubmitFailure(message) {
     if (this.pageUnloaded) return;
     this.submitted = false;
+    this.pendingSubmit = '';
     const locked = this.data.deadlineLocked || this.isDeadlineReached();
     if (locked) this.lockDeadline();
     this.setData({ submitting: false, deadlineLocked: locked });
     if (locked) this.clearTimer();
     else if (this.pageActive) this.startTimerLoop();
+    this.saveDraft('');
     wx.showModal({
       title: '提交失败',
       content: (message || '批改服务暂时不可用，请重试。') +

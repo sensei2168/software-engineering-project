@@ -9,6 +9,8 @@
     <view class="card-title">单人练习</view>
     <view class="note">选择年级、题型和题量，可自由练习，也可限时挑战。</view>
     <button class="primary" bindtap="openPractice">进入单人练习</button>
+    <button wx:if="{{hasDraft}}" class="secondary" bindtap="continuePractice">继续上次练习</button>
+    <view wx:if="{{draftError}}" class="note">{{draftError}}</view>
   </view>
   <view class="card">
     <view class="card-title">双人答题</view>

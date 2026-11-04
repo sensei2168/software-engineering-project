@@ -168,6 +168,15 @@ async function submitAnswers(input) {
 }
 
 module.exports = {
+  snapshot(quizId) {
+    const questions = takeLocalQuestions(quizId);
+    return questions ? JSON.parse(JSON.stringify(questions)) : null;
+  },
+  restore(draft) {
+    require('../utils/practice-draft').validate(draft);
+    rememberLocalSession(draft.quizId, JSON.parse(JSON.stringify(draft.questions)));
+    return draft.questions.map(require('../utils/question/generator').toPublicQuestion);
+  },
   createQuestionSet,
   submitAnswers,
   createId,
