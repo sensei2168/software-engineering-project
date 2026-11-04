@@ -49,5 +49,5 @@
   </view>
   <view class="selection-summary">已选：{{selectionSummary}}</view>
   <button class="settings-submit" bindtap="previewPractice" hover-class="submit-pressed">开始练习<text class="submit-arrow">→</text></button>
-  <view class="settings-footnote">题目显示后开始作答；退出答题页或关闭小程序会结束本次未交卷练习。</view>
+  <view class="settings-footnote">进度自动保存在本机，可从首页继续。限时练习退出后仍会计时。</view>
 </view>

@@ -1,4 +1,5 @@
 <view class="page practice-page">
+  <view class="note" wx:if="{{draftWarning}}">{{draftWarning}}</view>
   <view class="status" wx:if="{{loading && !error}}">正在出题，请稍候</view>
 
   <block wx:if="{{error}}">
