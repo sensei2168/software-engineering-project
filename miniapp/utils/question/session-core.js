@@ -8,7 +8,7 @@
  * 两位数÷一位数。混合运算、小数、分数明确返回 UNSUPPORTED_RULE，
  * 不会静默降级成别的题型。
  */
-const { RULE_VERSION, getRule, getGradeLabel } = require('../practice-rules');
+const { RULE_VERSION, getRule, getGradeLabel, selectedRuleIds } = require('../practice-rules');
 const { getStrategy } = require('./rule-strategies');
 const { generateQuestions, validateQuestionSpec, toPublicQuestion } = require('./generator');
 const { gradeAnswers } = require('./scoring');
@@ -41,7 +41,8 @@ function sanitizeConfig(raw) {
   if (!rule) {
     return { ok: false, code: 'INVALID_CONFIG', message: '请选择有效的练习题型' };
   }
-  if (rule.grade !== grade) {
+  const ids = selectedRuleIds({ ...config, grade });
+  if (!ids) {
     return { ok: false, code: 'INVALID_CONFIG', message: '年级与题型不匹配，请返回设置页重新选择' };
   }
   if (config.operation !== undefined && String(config.operation) !== rule.operation) {
@@ -67,6 +68,7 @@ function sanitizeConfig(raw) {
     value: {
       grade: rule.grade,
       ruleId: rule.id,
+      ...(ids.length > 1 ? { ruleIds: ids } : {}),
       operation: rule.operation,
       limit: rule.limit,
       count: count,
@@ -104,13 +106,25 @@ function createQuestionSet(payload, options) {
     'q' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
   const seed = pickString(source.seed, '');
 
-  const generated = generateQuestions({
-    ruleId: rule.id,
-    count: config.count,
-    sessionId: sessionId,
-    seed: seed
-  });
-  if (!generated.ok) return fail(generated.code, generated.message);
+  const ids = config.ruleIds || [config.ruleId];
+  const groups = [];
+  for (const [i, ruleId] of ids.entries()) {
+    const count = Math.floor(config.count / ids.length) + Number(i < config.count % ids.length);
+    const set = generateQuestions({ ruleId, count, sessionId, seed });
+    if (!set.ok) return fail(set.code, set.message);
+    groups.push(set);
+  }
+  const generated = groups[0];
+  const questions = [];
+  for (let row = 0; questions.length < config.count; row++) {
+    for (const group of groups) {
+      const q = group.questions[row];
+      if (q) {
+        const index = questions.length + 1;
+        questions.push({ ...q, id: generated.sessionId + '-' + index, index });
+      }
+    }
+  }
 
   const data = {
     quizId: generated.sessionId,
@@ -118,10 +132,10 @@ function createQuestionSet(payload, options) {
     // 规则版本统一取题型目录的 RULE_VERSION；生成时固定，收卷时由页面原样带回
     ruleVersion: RULE_VERSION,
     engineVersion: generated.engineVersion,
-    questions: generated.questions.map(toPublicQuestion)
+    questions: questions.map(toPublicQuestion)
   };
   if (options && options.includePrivate) {
-    data.privateQuestions = generated.questions;
+    data.privateQuestions = questions;
   }
 
   return { ok: true, data: data };

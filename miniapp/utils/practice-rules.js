@@ -96,4 +96,11 @@ function getGradeLabel(grade) {
   return item ? item.label : '';
 }
 
-module.exports = { RULE_VERSION, GRADES, RULE_GROUPS, RULES, getRule, getRulesForGrade, getGradeLabel };
+function selectedRuleIds(config) {
+  const ids = config.ruleIds === undefined ? [config.ruleId] : config.ruleIds;
+  if (!Array.isArray(ids) || !ids.length || ids[0] !== config.ruleId || new Set(ids).size !== ids.length ||
+      !ids.every(id => getRule(id) && getRule(id).grade === config.grade)) return null;
+  return ids.slice();
+}
+
+module.exports = { RULE_VERSION, GRADES, RULE_GROUPS, RULES, getRule, getRulesForGrade, getGradeLabel, selectedRuleIds };

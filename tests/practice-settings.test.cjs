@@ -97,6 +97,7 @@ test('both entry modes keep grade one/addition/30 questions, timed defaults to 1
 test('changing grade preserves subtraction, count and duration but updates the rule range', () => {
   const { page } = settings('timed');
   page.chooseRule(event('g1_subtract_20'));
+  page.chooseRule(event('g1_add_20'));
   page.changeCount({ detail: { value: '20' } });
   page.chooseDuration(event('60'));
   page.chooseGrade(event('2'));
@@ -115,6 +116,8 @@ test('leaving a grade without a compatible advanced type resets to addition with
   page.chooseGrade(event(3));
   page.chooseGroup(event('rational'));
   page.chooseRule(event('g3_fraction_same_den'));
+  page.chooseGroup(event('integer'));
+  page.chooseRule(event('g3_add_1000'));
   page.chooseGrade(event(2));
   assert.equal(page.data.config.ruleId, 'g2_add_100');
   assert.equal(page.data.selectedRule.group, 'integer');
@@ -123,16 +126,17 @@ test('leaving a grade without a compatible advanced type resets to addition with
   assert.equal(page.data.config.durationSeconds, 120);
 });
 
-test('group changes select the first new type, but tapping the current group keeps its selection', () => {
+test('group filters preserve selections across groups and settings navigation', () => {
   const { page } = settings('timed');
   page.chooseGrade(event(3));
   page.chooseDuration(event(180));
   page.changeCount({ detail: { value: '10' } });
   page.chooseGroup(event('rational'));
-  assert.equal(page.data.config.ruleId, 'g3_decimal_1place');
+  assert.equal(page.data.config.ruleId, 'g3_add_1000');
+  assert.ok(!page.data.visibleRules.some(rule => rule.selected));
   page.chooseRule(event('g3_fraction_same_den'));
   page.chooseGroup(event('rational'));
-  assert.equal(page.data.config.ruleId, 'g3_fraction_same_den');
+  assert.deepEqual(clone(page.data.config.ruleIds), ['g3_add_1000', 'g3_fraction_same_den']);
   page.chooseGroup(event('integer'));
   assert.equal(page.data.config.ruleId, 'g3_add_1000');
   assert.equal(page.data.countText, '10');
@@ -149,7 +153,7 @@ test('mode changes retain year, fraction type, count and duration', () => {
   page.chooseMode(event('normal'));
   assert.ok(page.data.selectionSummary.endsWith('不限时'));
   page.chooseMode(event('timed'));
-  assert.equal(page.data.config.ruleId, 'g3_fraction_same_den');
+  assert.deepEqual(clone(page.data.config.ruleIds), ['g3_add_1000', 'g3_fraction_same_den']);
   assert.equal(page.data.config.durationSeconds, 60);
   assert.equal(page.data.countText, '20');
 });
@@ -190,6 +194,19 @@ test('selecting a different grade does not erase an unresolved count error or ty
   assert.ok(page.data.selectionSummary.includes('题量待确认'));
 });
 
+test('normal and timed launch URLs retain every selected rule and reject malformed lists', () => {
+  for (const mode of ['normal', 'timed']) {
+    const { page, calls } = settings(mode);
+    page.chooseRule(event('g1_add_20'));
+    assert.match(page.data.notice, /至少/);
+    page.chooseRule(event('g1_subtract_20')); page.previewPractice();
+    const query = Object.fromEntries(new URL('https://example.invalid' + calls.navigateTo[0].url).searchParams);
+    assert.deepEqual(fromQuery(query).value.ruleIds, ['g1_add_20', 'g1_subtract_20']);
+    for (const invalid of ['', 'g1_add_20,g1_add_20', 'g1_add_20,g2_add_100']) {
+      assert.equal(fromQuery({ ...query, ruleIds:invalid }).ok, false);
+    }
+  }
+});
 test('invalid grade/rule pairs and altered compatibility fields are rejected', () => {
   const bad = [
     { grade: 0 }, { grade: 4 }, { grade: 1.5 }, { ruleId: 'unknown' },

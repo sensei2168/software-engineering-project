@@ -17,13 +17,13 @@
       </view>
     </view>
     <view class="setting-group">
-      <view class="setting-label">题型<text class="label-detail">每次选一种</text></view>
+      <view class="setting-label">题型<text class="label-detail">可多选 · 总题量均分</text></view>
       <view class="option-row family-row" wx:if="{{config.grade === 3}}">
         <button wx:for="{{ruleGroups}}" wx:key="value" class="setting-option family-option {{selectedRule.group === item.value ? 'is-selected' : ''}}" data-value="{{item.value}}" bindtap="chooseGroup" hover-class="option-pressed">{{item.label}}<text wx:if="{{selectedRule.group === item.value}}" class="family-check">✓</text></button>
       </view>
       <view class="type-grid">
         <view wx:for="{{visibleRules}}" wx:key="id" class="type-cell {{item.wide ? 'type-cell-wide' : ''}}">
-          <button class="setting-option type-option {{config.ruleId === item.id ? 'is-selected' : ''}}" data-value="{{item.id}}" bindtap="chooseRule" hover-class="option-pressed"><view class="type-name">{{item.label}}</view><view class="type-description">{{item.rangeLabel}}</view><text wx:if="{{config.ruleId === item.id}}" class="option-check">✓</text></button>
+          <button class="setting-option type-option {{item.selected ? 'is-selected' : ''}}" data-value="{{item.id}}" bindtap="chooseRule" hover-class="option-pressed"><view class="type-name">{{item.label}}</view><view class="type-description">{{item.rangeLabel}}</view><text wx:if="{{item.selected}}" class="option-check">✓</text></button>
         </view>
       </view>
       <view class="rule-example">

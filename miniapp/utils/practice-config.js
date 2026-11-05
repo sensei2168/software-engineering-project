@@ -1,4 +1,4 @@
-const { getRule, getRulesForGrade, getGradeLabel } = require('./practice-rules');
+const { getRule, getRulesForGrade, getGradeLabel, selectedRuleIds } = require('./practice-rules');
 
 const DEFAULT_CONFIG = {
   grade: 1,
@@ -28,7 +28,8 @@ function validateConfig(input) {
     return { ok: false, message: '请选择一年级、二年级或三年级' };
   }
   const rule = getRule(ruleId);
-  if (!rule || rule.grade !== grade) {
+  const ids = selectedRuleIds({ grade, ruleId, ruleIds: input.ruleIds });
+  if (!rule || !ids) {
     return { ok: false, message: '请选择当前年级支持的题型' };
   }
   if (input.operation !== undefined && input.operation !== rule.operation) {
@@ -47,7 +48,7 @@ function validateConfig(input) {
     return { ok: false, message: '请选择 60、120 或 180 秒' };
   }
   return { ok: true, value: {
-    grade, ruleId: rule.id, operation: rule.operation, limit: rule.limit, count: input.count,
+    grade, ruleId: rule.id, ...(ids.length > 1 ? { ruleIds: ids } : {}), operation: rule.operation, limit: rule.limit, count: input.count,
     mode: input.mode, durationSeconds: input.durationSeconds
   } };
 }
@@ -61,6 +62,7 @@ function fromQuery(query) {
   return validateConfig({
     grade: query.grade === undefined ? undefined : Number(query.grade),
     ruleId: query.ruleId,
+    ruleIds: typeof query.ruleIds === 'string' ? query.ruleIds.replace(/%2c/ig, ',').split(',') : query.ruleIds,
     operation: query.operation,
     limit: query.limit === undefined ? undefined : Number(query.limit),
     count: Number(query.count), mode: query.mode,
@@ -72,8 +74,8 @@ function getConfigDisplay(config) {
   const rule = getRule(config.ruleId);
   return {
     gradeLabel: getGradeLabel(config.grade),
-    ruleLabel: rule.label,
-    rangeLabel: rule.rangeLabel,
+    ruleLabel: (config.ruleIds || [rule.id]).map(id => getRule(id).label).join('、'),
+    rangeLabel: config.ruleIds && config.ruleIds.length > 1 ? '多题型' : rule.rangeLabel,
     ruleNote: rule.note
   };
 }
