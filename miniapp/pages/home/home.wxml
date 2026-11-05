@@ -4,7 +4,7 @@
     <view class="title">口算小搭档</view>
     <view class="subtitle">每天练一练，和数字交朋友</view>
   </view>
-  <view class="status">开发验收版 · 比赛需联网</view>
+  <view class="status">比赛需联网</view>
   <view class="card">
     <view class="card-title">单人练习</view>
     <view class="note">选择年级、题型和题量，可自由练习，也可限时挑战。</view>
