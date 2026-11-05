@@ -15,6 +15,10 @@ const ACTIVE = ['waiting', 'countdown', 'playing'];
 const POLL_MS = 1000;
 const RESULT_POLL_MS = 3000;
 
+function choicesFor(grade, ids) {
+  return getRulesForGrade(grade).map(rule => ({ ...rule, selected: ids.includes(rule.id) }));
+}
+
 Page({
   data: {
     source: 'live', allowDemo: false, stage: 'create', title: '', room: null, slots: [],
@@ -22,7 +26,7 @@ Page({
     allReady: false, busy: false, error: '', notice: '', pendingAction: '', inputCode: '',
     inputError: '', config: INITIAL_CONFIG, configSummary: configSummary(INITIAL_CONFIG),
     editConfig: false, countText: '30', configError: '', grades: GRADES, durations: DURATIONS,
-    ruleChoices: getRulesForGrade(1), ruleIndex: 0, countdown: 3, waitingSeconds: 600,
+    ruleChoices: choicesFor(1, [INITIAL_CONFIG.ruleId]), countdown: 3, waitingSeconds: 600,
     phaseSeconds: 0, entry: 'create', savedRoomId: '', questionIndex: 0, currentQuestion: null,
     answerInput: '', answerLocked: false, answerError: '', submittedCount: 0, partnerCount: 0,
     selfFinished: false, partnerFinished: false, matchResult: null, resultRows: [], resultSaveText: '', resultSaved: false,
@@ -34,7 +38,7 @@ Page({
     this._visibilityEpoch = 0; this._lastServerNow = 0; this._nextPollAt = 0;
     this._readEpoch = 0; this._polling = null;
     let allowDemo = false;
-    try { allowDemo = ['develop', 'trial'].includes(wx.getAccountInfoSync().miniProgram.envVersion); } catch (_) {}
+    try { allowDemo = options.mode === 'demo' && wx.getAccountInfoSync().miniProgram.envVersion === 'develop'; } catch (_) {}
     const source = options.mode === 'demo' && allowDemo ? 'demo' : 'live';
     const code = typeof options.code === 'string' ? options.code : '';
     this.setData({ allowDemo, source, inputCode: code, stage: code ? 'join' : 'create', entry: code ? 'join' : 'create' });
@@ -261,9 +265,9 @@ Page({
     try { wx.setStorageSync(SAVED_ROOM, room.roomId); }
     catch (_) { this.applyError({ code: 'LOCAL_STORAGE_FAILED' }); return; }
     if (!this.showEntry('create', true)) return;
-    const config = roomConfig(room.config).value, ruleChoices = getRulesForGrade(config.grade);
+    const config = roomConfig(room.config).value, ruleChoices = choicesFor(config.grade, config.ruleIds || [config.ruleId]);
     this.setData({ savedRoomId: room.roomId, config, ruleChoices,
-      ruleIndex: ruleChoices.findIndex(rule => rule.id === config.ruleId), countText: String(config.count),
+      countText: String(config.count),
       configSummary: configSummary(config), editConfig: true,
       notice: '已返回比赛设置。上一场比赛可通过下方入口重新查看。' });
   },
@@ -343,20 +347,29 @@ Page({
   updateConfigPreview() {
     const text = this.data.countText.trim(), count = Number(text);
     const countLabel = /^\d+$/.test(text) && count >= 10 && count <= 50 ? count + ' 道' : '题量待确认';
-    this.setData({ configSummary: [getGradeLabel(this.data.config.grade), getRule(this.data.config.ruleId).label,
+    const labels = this.data.ruleChoices.filter(rule => rule.selected).map(rule => rule.label).join('、');
+    this.setData({ configSummary: [getGradeLabel(this.data.config.grade), labels,
       countLabel, this.data.config.durationSeconds + ' 秒'].join(' · ') });
   },
   chooseGrade(event) {
     const grade = Number(event.currentTarget.dataset.value), rules = getRulesForGrade(grade);
-    if (!rules.length) return;
+    if (!rules.length || grade === this.data.config.grade) return;
     const previous = getRule(this.data.config.ruleId), rule = rules.find(item => item.operation === previous.operation) || rules[0];
-    this.setData({ config: { ...this.data.config, grade, ruleId: rule.id }, ruleChoices: rules,
-      ruleIndex: rules.findIndex(item => item.id === rule.id), configError: '' });
+    this.setData({ config: { ...this.data.config, grade, ruleId: rule.id, ruleIds: [rule.id] },
+      ruleChoices: choicesFor(grade, [rule.id]), configError: '' });
     this.updateConfigPreview();
   },
   chooseRule(event) {
-    const ruleIndex = Number(event.detail.value), rule = this.data.ruleChoices[ruleIndex];
-    if (rule) this.setData({ config: { ...this.data.config, ruleId: rule.id }, ruleIndex, configError: '' });
+    const config = this.data.config, id = event.currentTarget.dataset.value;
+    if (!this.data.ruleChoices.some(rule => rule.id === id)) return;
+    const ids = (config.ruleIds || [config.ruleId]).slice();
+    if (ids.includes(id) && ids.length === 1) {
+      this.setData({ configError: '至少保留一个题型。' }); return;
+    }
+    const next = ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id];
+    const ruleChoices = choicesFor(config.grade, next);
+    const ruleIds = ruleChoices.filter(rule => rule.selected).map(rule => rule.id);
+    this.setData({ config: { ...config, ruleId: ruleIds[0], ruleIds }, ruleChoices, configError: '' });
     this.updateConfigPreview();
   },
   chooseDuration(event) {

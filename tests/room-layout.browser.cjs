@@ -62,7 +62,7 @@ async function fixtures() {
   async function pair(s, p) { await p.createRoom(); await s.demo(p, 'partnerJoin'); }
   async function both(s, p) { await pair(s, p); await p.toggleReady(); await s.demo(p, 'partnerReady'); }
   await sample('create');
-  await sample('config', async (_, p) => { p.toggleConfig(); p.chooseGrade({ currentTarget: { dataset: { value: 3 } } }); p.chooseRule({ detail: { value: 6 } }); });
+  await sample('config', async (_, p) => { p.toggleConfig(); p.chooseGrade({ currentTarget: { dataset: { value: 3 } } }); p.chooseRule({ currentTarget: { dataset: { value: 'g3_fraction_same_den' } } }); });
   await sample('invalid-count', async (_, p) => { p.inputCount({ detail: { value: '' } }); await p.createRoom(); });
   await sample('join', async (_, p) => p.openJoin());
   await sample('waiting', async (_, p) => p.createRoom());
