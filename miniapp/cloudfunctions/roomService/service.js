@@ -45,15 +45,20 @@ function version(value) {
   return value;
 }
 function config(input) {
-  fields(input, ['grade', 'ruleId', 'count', 'durationSeconds', 'mode', 'operation', 'limit'], '比赛配置');
+  fields(input, ['grade', 'ruleId', 'ruleIds', 'count', 'durationSeconds', 'mode', 'operation', 'limit'], '比赛配置');
+  const ids = input.ruleIds === undefined ? [input.ruleId] : input.ruleIds;
+  if (!Array.isArray(ids) || !ids.length || ids[0] !== input.ruleId || new Set(ids).size !== ids.length ||
+      !ids.every(id => contract.rules.some(r => r.grade === input.grade && r.id === id))) {
+    fail('INVALID_CONFIG', '请选择本年级一个或多个不同的题型');
+  }
   const rule = contract.rules.find(item => item.id === input.ruleId);
   if (!rule || rule.grade !== input.grade || (input.operation !== undefined && input.operation !== rule.operation) ||
       (input.limit !== undefined && input.limit !== rule.limit) || (input.mode !== undefined && input.mode !== 'timed') ||
       !Number.isInteger(input.count) || input.count < 10 || input.count > 50 || !contract.durations.includes(input.durationSeconds)) {
     fail('INVALID_CONFIG', '请检查年级、题型、10—50 道题量及 60／120／180 秒时长');
   }
-  if (rule.id === 'g2_multiply_table' && input.count > 45) fail('QUESTION_POOL_INSUFFICIENT', '表内乘法去重后最多 45 题，请减少题量');
-  return { grade: rule.grade, ruleId: rule.id, ruleVersion: contract.ruleVersion,
+  if (ids.length === 1 && rule.id === 'g2_multiply_table' && input.count > 45) fail('QUESTION_POOL_INSUFFICIENT', '表内乘法去重后最多 45 题，请减少题量');
+  return { grade: rule.grade, ruleId: rule.id, ...(ids.length > 1 ? { ruleIds: ids.slice() } : {}), ruleVersion: contract.ruleVersion,
     count: input.count, mode: 'timed', durationSeconds: input.durationSeconds };
 }
 function parse(event) {
@@ -289,7 +294,7 @@ function createRoomService({ store, now = Date.now, randomCode = () => String(cr
       let data;
       if (input.action === 'whoami') {
         data = { userId, appId: APP_ID, environmentId: typeof context.ENV === 'string' ? context.ENV : '',
-          stage: 'p4-match-complete', serviceVersion: '2026-11-04.1', ruleVersion: contract.ruleVersion,
+          stage: 'p4-match-complete', serviceVersion: '2026-11-05.1', ruleVersion: contract.ruleVersion,
           capabilities: { start: true, cancelStart: true, submitAnswer: true, finish: true } };
       } else if (input.action === 'get') {
         data = await store.transaction(async tx => ({ room: snapshot(await get(tx, input.payload.roomId, userId), userId, now()) }));

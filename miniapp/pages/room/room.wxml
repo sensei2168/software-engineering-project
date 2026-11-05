@@ -1,9 +1,6 @@
 <view class="room-page {{stage === 'playing' ? 'match-playing' : ''}}">
   <view wx:if="{{source === 'demo'}}" class="room-banner demo-banner">模拟演示 · 全部房间和成员均为演示数据</view>
-  <view class="room-mode" wx:if="{{allowDemo && stage !== 'playing' && stage !== 'countdown'}}">
-    <text>{{source === 'demo' ? '仅供页面演示，不连接真实房间' : '当前连接真实房间'}}</text>
-    <button class="room-button mode-switch" bindtap="switchSource" disabled="{{busy}}">{{source === 'demo' ? '切换真实房间' : '进入模拟演示'}}</button>
-  </view>
+
   <view class="room-banner" wx:if="{{pendingAction}}">
     <view>有操作尚未确认，请先重试，避免重复创建或提交。</view>
     <button class="room-button secondary" bindtap="retryConnection" disabled="{{busy}}">重试未确认操作</button>
@@ -28,9 +25,11 @@
         <view class="room-options">
           <button wx:for="{{grades}}" wx:key="value" class="room-button room-option {{config.grade === item.value ? 'selected' : ''}}" data-value="{{item.value}}" bindtap="chooseGrade" disabled="{{busy}}">{{item.label}}<text wx:if="{{config.grade === item.value}}"> ✓</text></button>
         </view>
-        <view class="room-label">题型</view>
-        <picker range="{{ruleChoices}}" range-key="label" value="{{ruleIndex}}" bindchange="chooseRule" disabled="{{busy}}"><view class="room-picker">{{ruleChoices[ruleIndex].label}}<text class="picker-arrow">⌄</text></view></picker>
-        <view class="room-hint">{{ruleChoices[ruleIndex].rangeLabel}}</view>
+        <view class="room-label">题型（可多选）</view>
+        <view class="room-rule-grid">
+          <button wx:for="{{ruleChoices}}" wx:key="id" class="room-button room-option {{item.selected ? 'selected' : ''}}" data-value="{{item.id}}" bindtap="chooseRule" disabled="{{busy}}">{{item.label}}<text wx:if="{{item.selected}}"> ✓</text></button>
+        </view>
+        <view class="room-hint">总题量会平均分给所选题型。</view>
         <view class="room-label">题量 <text class="room-detail">10—50 道</text></view>
         <input class="room-input" type="number" maxlength="3" value="{{countText}}" bindinput="inputCount" disabled="{{busy}}" confirm-type="done" placeholder="默认30道" aria-label="题量，10到50之间的整数" />
         <view class="room-label">比赛时长</view>

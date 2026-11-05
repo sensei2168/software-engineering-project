@@ -12,17 +12,26 @@ test('public entry defaults to live; demo requires explicit development or trial
   assert.equal(p.data.source, 'live'); assert.equal(p.data.stage, 'create'); assert.equal(s.requests.length, 0);
   const release = roomPageFixture({ envVersion: 'release' }), r = release.load({ mode: 'demo' });
   assert.equal(r.data.allowDemo, false); assert.equal(r.data.source, 'live'); r.switchSource(); assert.equal(r.data.source, 'live');
-  assert.equal(roomPageFixture({ envVersion: 'trial' }).load({ mode: 'demo' }).data.source, 'demo');
+  assert.equal(roomPageFixture({ envVersion: 'trial' }).load({ mode: 'demo' }).data.source, 'live');
 });
 test('configuration edits use the rule catalog, validate counts and preserve chosen settings in a room', async () => {
-  const { s, p } = await demo(); p.chooseGrade(event(3)); p.chooseRule({ detail: { value: 6 } });
+  const { s, p } = await demo(); p.chooseGrade(event(3)); p.chooseRule({ currentTarget: { dataset: { value: 'g3_fraction_same_den' } } });
   p.chooseDuration(event(60)); p.inputCount({ detail: { value: '20' } }); await p.createRoom();
-  assert.equal(p.data.room.config.ruleId, 'g3_fraction_same_den'); assert.equal(p.data.room.config.durationSeconds, 60);
+  assert.deepEqual(Array.from(p.data.room.config.ruleIds), ['g3_add_1000', 'g3_fraction_same_den']); assert.equal(p.data.room.config.durationSeconds, 60);
   assert.equal(p.data.room.config.count, 20); assert.equal(s.requests.length, 0);
   const second = await demo();
   for (const count of ['', '9', '51', '20.5']) {
     second.p.inputCount({ detail: { value: count } }); await second.p.createRoom(); assert.ok(second.p.data.configError); assert.equal(second.p.data.room, null);
   }
+});
+test('multi-select keeps one choice, toggles it off after adding another, and clears cross-grade choices', async () => {
+  const { p } = await demo();
+  p.chooseRule(event('g1_add_20')); assert.match(p.data.configError, /至少/);
+  p.chooseRule(event('g1_subtract_20')); assert.equal(p.readConfig().ruleIds.length, 2);
+  p.chooseRule(event('g1_add_20')); assert.equal(p.readConfig().ruleId, 'g1_subtract_20');
+  p.chooseGrade(event(3)); const checked = p.readConfig();
+  assert.equal(checked.grade, 3); assert.equal(checked.ruleId, 'g3_subtract_1000');
+  assert.equal(checked.ruleIds, undefined);
 });
 test('creating and waiting uses an actual snapshot, and each role controls only itself', async () => {
   const { s, p } = await demo(); await pair(s, p); await p.toggleReady();
@@ -153,9 +162,9 @@ test('starting from a scrolled room and showing connection failure bring the new
   s.scrolls.length = 0; await s.demo(p, 'disconnect'); assert.deepEqual(s.scrolls, [0]);
 });
 test('configuration summary follows the visible draft instead of showing the previous grade and count', async () => {
-  const { p } = await demo(); p.toggleConfig(); p.chooseGrade(event(3)); p.chooseRule({ detail: { value: 6 } });
+  const { p } = await demo(); p.toggleConfig(); p.chooseGrade(event(3)); p.chooseRule({ currentTarget: { dataset: { value: 'g3_fraction_same_den' } } });
   p.inputCount({ detail: { value: '20' } }); p.chooseDuration(event(60));
-  assert.equal(p.data.configSummary, '三年级 · 分数加减 · 20 道 · 60 秒');
+  assert.equal(p.data.configSummary, '三年级 · 加法、分数加减 · 20 道 · 60 秒');
   p.inputCount({ detail: { value: '' } }); assert.match(p.data.configSummary, /题量待确认/);
 });
 test('ending an active demo is explicit, does not touch live recovery and permits a fresh run', async () => {

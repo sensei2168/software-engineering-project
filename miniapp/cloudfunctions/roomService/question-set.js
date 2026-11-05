@@ -3,10 +3,19 @@ const { generateQuestions, ENGINE_VERSION } = require('./question-generator');
 const contract = require('./rules.generated.json');
 
 function createQuestions(config, attemptId, secretSeed) {
-  const generated = generateQuestions({ ruleId: config.ruleId, count: config.count, sessionId: attemptId, seed: secretSeed });
-  if (!generated.ok) throw new Error('Question generation failed');
+  const ids = config.ruleIds || [config.ruleId];
+  const groups = ids.map((ruleId, i) => {
+    const count = Math.floor(config.count / ids.length) + Number(i < config.count % ids.length);
+    const result = generateQuestions({ ruleId, count, sessionId: attemptId, seed: secretSeed });
+    if (!result.ok) throw new Error('Question generation failed');
+    return result.questions;
+  });
+  const questions = [];
+  for (let row = 0; questions.length < config.count; row++) {
+    for (const group of groups) if (group[row]) questions.push(group[row]);
+  }
   return { ruleVersion: contract.ruleVersion, engineVersion: ENGINE_VERSION,
-    questions: generated.questions.map((question, index) => ({ ...question, id: 'q_' + (index + 1) })) };
+    questions: questions.map((question, index) => ({ ...question, index: index + 1, id: 'q_' + (index + 1) })) };
 }
 
 function publicQuestion(question) {

@@ -6,16 +6,22 @@ function roomConfig(input = {}) {
   const result = validateConfig(Object.assign({}, DEFAULT_CONFIG,
     rule ? { operation: rule.operation, limit: rule.limit } : {}, input, { mode: 'timed' }));
   if (!result.ok) return result;
-  if (result.value.ruleId === 'g2_multiply_table' && result.value.count > 45) {
+  const ids = input.ruleIds === undefined ? [result.value.ruleId] : input.ruleIds;
+  if (!Array.isArray(ids) || !ids.length || ids[0] !== result.value.ruleId || new Set(ids).size !== ids.length ||
+      !ids.every(id => getRule(id) && getRule(id).grade === result.value.grade)) {
+    return { ok: false, message: '请选择本年级一个或多个不同的题型' };
+  }
+  if (ids.length === 1 && result.value.ruleId === 'g2_multiply_table' && result.value.count > 45) {
     return { ok: false, message: '表内乘法去重后最多 45 题，请减少题量' };
   }
   const { grade, ruleId, count, durationSeconds } = result.value;
-  return { ok: true, value: { grade, ruleId, count, mode: 'timed', durationSeconds } };
+  return { ok: true, value: { grade, ruleId, ...(ids.length > 1 ? { ruleIds: ids.slice() } : {}), count, mode: 'timed', durationSeconds } };
 }
 
 function configSummary(config) {
   const display = getConfigDisplay(config);
-  return [display.gradeLabel, display.ruleLabel, config.count + ' 道', config.durationSeconds + ' 秒'].join(' · ');
+  const labels = (config.ruleIds || [config.ruleId]).map(id => getRule(id).label).join('、');
+  return [display.gradeLabel, labels, config.count + ' 道', config.durationSeconds + ' 秒'].join(' · ');
 }
 
 function viewRoom(room, demo = false) {

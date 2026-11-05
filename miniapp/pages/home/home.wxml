@@ -15,7 +15,7 @@
   <view class="card">
     <view class="card-title">双人答题</view>
     <view class="note">和一位伙伴完成同一组题目。</view>
-    <button class="secondary" bindtap="openRoom">进入双人比赛</button>
+    <button class="primary" bindtap="openRoom">进入双人比赛</button>
   </view>
-  <button class="secondary" bindtap="openHistory">练习记录</button>
+  <button class="primary" bindtap="openHistory">练习记录</button>
 </view>

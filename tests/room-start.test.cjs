@@ -14,6 +14,28 @@ async function ready(f, settings) {
 }
 async function start(f, settings) { const room = await ready(f, settings); return (await f.call('a', 'start', op(room))).data.room; }
 
+test('mixed room preserves selections, distributes the total and serves both players identical numbered questions', async () => {
+  const f = fixture(), ruleIds = ['g3_add_1000', 'g3_decimal_1place', 'g3_fraction_same_den'];
+  const room = await start(f, { grade: 3, ruleId: ruleIds[0], ruleIds, count: 10, durationSeconds: 60 });
+  f.advance(COUNTDOWN_MS);
+  const get = async actor => (await f.call(actor, 'get', { roomId: room.roomId })).data.room;
+  const a = await get('a'), b = await get('b');
+  assert.deepEqual(a.config.ruleIds, ruleIds);
+  assert.deepEqual(a.questions, b.questions);
+  assert.deepEqual(a.questions.map(q=>q.ruleId), [...ruleIds,...ruleIds,...ruleIds,ruleIds[0]]);
+  a.questions.forEach((q,i)=>{ assert.equal(q.index, i+1); assert.equal(q.id, 'q_'+(i+1)); assert.equal(q.answer, undefined); });
+});
+test('room service rejects empty, duplicate and cross-grade selections and applies pool limits by allocation', async () => {
+  const f = fixture(), ruleId = 'g2_multiply_table';
+  const config = { grade:2, ruleId, count:50, durationSeconds:60 };
+  for (const ruleIds of [[], [ruleId,ruleId], [ruleId,'g1_add_20']]) {
+    error(await f.create('a',{...config,ruleIds}), 'INVALID_CONFIG');
+  }
+  error(await f.create('a',config), 'QUESTION_POOL_INSUFFICIENT');
+  const room = await start(f,{...config,ruleIds:[ruleId,'g2_divide_table']});
+  assert.equal(room.status,'countdown');
+});
+
 test('start checks caller, host, two ready members, version, and forbidden client fields', async () => {
   const f = fixture(); let room = (await f.create()).data.room;
   error(await f.call('a', 'start', op(room)), 'NEED_TWO_MEMBERS');
