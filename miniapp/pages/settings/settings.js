@@ -2,11 +2,12 @@ const { DEFAULT_CONFIG, DURATIONS, validateConfig, toQuery, fromQuery } = requir
 const { GRADES, RULE_GROUPS, getRule, getRulesForGrade, getGradeLabel } = require('../../utils/practice-rules');
 const { openPage } = require('../../utils/navigation');
 
-function selectionSummary(config, countText, rule) {
+function selectionSummary(config, countText) {
   const text = countText.trim();
   const countLabel = /^\d+$/.test(text) && Number(text) >= 10 && Number(text) <= 50
     ? Number(text) + ' 道' : '题量待确认';
-  return [getGradeLabel(config.grade), rule.label, countLabel,
+  const labels = (config.ruleIds || [config.ruleId]).map(id => getRule(id).label).join('、');
+  return [getGradeLabel(config.grade), labels, countLabel,
     config.mode === 'timed' ? config.durationSeconds + ' 秒' : '不限时'].join(' · ');
 }
 
@@ -27,7 +28,7 @@ Page({
     if (options.ruleId !== undefined || options.grade !== undefined || options.count !== undefined) {
       const restored = fromQuery(options);
       if (restored.ok) {
-        this.updateSelection(restored.value, { countText: String(restored.value.count), error: '' });
+        this.updateSelection(restored.value, { focus: getRule(restored.value.ruleId), countText: String(restored.value.count), error: '' });
         return;
       }
       this.updateSelection(Object.assign({}, DEFAULT_CONFIG), {
@@ -41,22 +42,23 @@ Page({
     }), { countText: String(DEFAULT_CONFIG.count), error: '' });
   },
   updateSelection(config, options = {}) {
-    const rule = getRule(config.ruleId);
+    const rule = options.focus || (this.data.selectedRule.grade === config.grade ? this.data.selectedRule : getRule(config.ruleId));
+    const ids = config.ruleIds || [config.ruleId];
     const countText = options.countText === undefined ? this.data.countText : options.countText;
     this.setData({
       config,
       countText,
       selectedRule: rule,
-      visibleRules: getRulesForGrade(config.grade, rule.group),
+      visibleRules: getRulesForGrade(config.grade, rule.group).map(item => ({ ...item, selected: ids.includes(item.id) })),
       selectionSummary: selectionSummary(config, countText, rule),
       notice: options.notice || '',
       error: options.error === undefined ? this.data.error : options.error
     });
   },
   selectRule(rule, notice = '') {
-    this.updateSelection(Object.assign({}, this.data.config, {
-      grade: rule.grade, ruleId: rule.id, operation: rule.operation, limit: rule.limit
-    }), { notice });
+    const config = { ...this.data.config, grade: rule.grade, ruleId: rule.id, operation: rule.operation, limit: rule.limit };
+    delete config.ruleIds;
+    this.updateSelection(config, { focus: rule, notice });
   },
   chooseGrade(event) {
     const grade = Number(event.currentTarget.dataset.value);
@@ -70,12 +72,22 @@ Page({
     const group = event.currentTarget.dataset.value;
     if (this.data.config.grade !== 3 || group === this.data.selectedRule.group) return;
     const rule = getRulesForGrade(3, group)[0];
-    if (rule) this.selectRule(rule, '已切换为' + rule.label + '，题量和时长保持原选择。');
+    if (rule) this.updateSelection(this.data.config, { focus: rule });
   },
   chooseRule(event) {
     const rule = getRule(event.currentTarget.dataset.value);
     if (rule && rule.grade === this.data.config.grade && rule.group === this.data.selectedRule.group) {
-      this.selectRule(rule);
+      const ids = this.data.config.ruleIds || [this.data.config.ruleId];
+      if (ids.includes(rule.id) && ids.length === 1) {
+        this.setData({ notice: '至少保留一个题型。' }); return;
+      }
+      const next = ids.includes(rule.id) ? ids.filter(id => id !== rule.id) : [...ids, rule.id];
+      const selection = getRulesForGrade(rule.grade).filter(item => next.includes(item.id));
+      const first = selection[0];
+      const config = { ...this.data.config, ruleId: first.id, operation: first.operation, limit: first.limit };
+      if (selection.length > 1) config.ruleIds = selection.map(item => item.id);
+      else delete config.ruleIds;
+      this.updateSelection(config, { focus: rule });
     }
   },
   chooseMode(event) {

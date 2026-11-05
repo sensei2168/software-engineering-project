@@ -50,6 +50,26 @@ test('interrupted manual submission is retried with the original quiz and answer
   assert.equal(records.loadRecords().records.length,1);assert.equal(draft.read().draft,null);
   resolve({ok:false});await pending;assert.equal(draft.read().draft,null);resumed.onUnload();
 });
+for (const mode of ['normal', 'timed']) test('mixed '+mode+' paper survives restart, grading, history and correction', async t=>{
+  const h=setup(t), ids=['g3_mixed_2step','g3_decimal_1place','g3_fraction_same_den'];
+  const first=h.page({...config,grade:'3',ruleId:ids[0],ruleIds:ids.join(','),mode});
+  await flush();
+  const questions=JSON.stringify(first.questions);
+  assert.equal(new Set(first.questions.map(q=>q.id)).size,10);
+  assert.deepEqual(Array.from(first.questions,q=>q.ruleId),[...ids,...ids,...ids,ids[0]]);
+  first.goTo(2); first.onFractionInput({currentTarget:{dataset:{part:'numerator'}},detail:{value:'2'}});
+  first.onUnload();service._clearLocalSessions();h.advance(10000);
+  const p=h.page({resume:'1'});await flush();
+  assert.equal(JSON.stringify(p.questions),questions);assert.equal(p.answers[2],'2/');
+  if(mode==='timed'){assert.equal(p.data.remainingSeconds,50);h.advance(51000);p.tick();await flush();}
+  else await p.submit('manual');
+  assert.equal(p.data.finished,true);
+  const record=records.getRecord(p.savedRecordId).record;
+  assert.deepEqual(Array.from(record.config.ruleIds),ids);assert.match(record.configText,/小数/);assert.match(record.configText,/分数/);
+  const {gradeCorrection}=require('../miniapp/utils/correction');
+  for(const item of record.items)assert.equal(gradeCorrection(item,item.correctAnswer).status,'correct');
+  p.onUnload();
+});
 test('opening new settings cannot silently overwrite unfinished work',async t=>{
   const h=setup(t),first=h.page(config);await flush();const id=first.data.quizId;first.onUnload();
   const other=h.page({...config,count:'20'});await flush();assert.match(other.data.error,/已有未完成/);assert.equal(draft.read().draft.quizId,id);

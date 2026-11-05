@@ -6,7 +6,7 @@ function validate(d) {
       !Number.isFinite(d.startTime) || d.startTime <= 0 || typeof d.ruleVersion !== 'string') throw Error('未完成练习数据无效，请返回首页重新开始。');
   const c = sanitizeConfig(d.config);
   if (!c.ok || !Array.isArray(d.questions) || d.questions.length !== c.value.count ||
-      !d.questions.every(q => validateQuestionSpec(q) && q.ruleId === c.value.ruleId) ||
+      !d.questions.every(q => validateQuestionSpec(q) && (c.value.ruleIds || [c.value.ruleId]).includes(q.ruleId)) ||
       !Array.isArray(d.answers) || d.answers.length !== d.questions.length ||
       !d.answers.every(a => typeof a === 'string' && a.length <= 24) ||
       !Number.isInteger(d.index) || d.index < 0 || d.index >= d.questions.length ||
