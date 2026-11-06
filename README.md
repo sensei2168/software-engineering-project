@@ -57,7 +57,7 @@
 | sensei2168 | 袁嘉亮 | 组长 | 需求计划、房间后端与身份权限、接口集成、后端部署及汇报 | [P2 基础代码与接口](docs/08_组长后端第一阶段交付与接口.md)；[双账号基础房间人工验证](docs/09_云开发部署与双账号验证.md)；其他云端验证待完成 |
 | ru0608 | 闫心如 | 组员 | 年级题型设置、3 秒开赛与取消交互、草图重连修复；本分支落实原生房间页、真实基础接口与独立模拟演示 | [PR #1](https://github.com/sensei2168/software-engineering-project/pull/1)、[PR #2](https://github.com/sensei2168/software-engineering-project/pull/2) 已合并；[本轮页面与待执行手工验收](docs/11_房间页接入与手工验收.md) |
 | ASnowingNight | 何顺 | 组员 | 整数／混合／小数／分数生成与输入、精确判题、计时及服务端裁判 | 待补充 |
-| 待补充 | 彭方鑫 | 组员 | 精确答案与规则版本的结果／订正／历史、按开赛批次同步恢复、测试及发布协助 | [PR #3：结果展示与本机历史组件](https://github.com/sensei2168/software-engineering-project/pull/3)；[集成验证记录](docs/验证记录-结果与历史.md)；真实批改接入与订正待完成 |
+| KEGRI967 | 彭方鑫 | 组员 | 精确答案与规则版本的结果／订正／历史、按开赛批次同步恢复、测试及发布协助 | [PR #3：结果展示与本机历史组件](https://github.com/sensei2168/software-engineering-project/pull/3)；[集成验证记录](docs/验证记录-结果与历史.md)；真实批改接入与订正待完成 |
 
 ## 当前进展
 
